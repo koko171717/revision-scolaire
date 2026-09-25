@@ -131,7 +131,6 @@ function showModes(chapter) {
 
   addBackButton(() => loadChapters(currentSubject));
 
-  /* Révision */
   const revisionCard = document.createElement("div");
   revisionCard.className = "subject-card";
 
@@ -153,7 +152,6 @@ function showModes(chapter) {
 
   container.appendChild(revisionCard);
 
-  /* Test */
   const testCard = document.createElement("div");
 
   if (currentChapter.test_mode === "disabled") {
@@ -163,17 +161,23 @@ function showModes(chapter) {
       <div class="subject-icon">🎯</div>
       <div class="subject-name">Test</div>
       <div class="mode-description">
-        QCM bientôt disponible
+        Test bientôt disponible
       </div>
     `;
   } else {
     testCard.className = "subject-card";
 
+    let description = "Écris ta réponse et obtiens ton score.";
+
+    if (currentChapter.test_mode === "qcm") {
+      description = "Choisis la bonne réponse parmi 4 propositions.";
+    }
+
     testCard.innerHTML = `
       <div class="subject-icon">🎯</div>
       <div class="subject-name">Test</div>
       <div class="mode-description">
-        Écris ta réponse et obtiens ton score.
+        ${description}
       </div>
     `;
 
@@ -460,20 +464,31 @@ async function startTest(chapter, direction) {
 
   if (!data) return;
 
-  testQuestions = buildQuestions(data, direction);
+  if (chapter.test_mode === "qcm") {
+    testQuestions = buildQcmQuestions(data);
+  } else {
+    testQuestions = buildQuestions(data, direction);
+  }
 
   shuffleArray(testQuestions);
 
-  /* Maximum 20 questions */
   testQuestions = testQuestions.slice(0, 20);
 
   currentTestIndex = 0;
   testScore = 0;
 
-  showTestQuestion();
+  if (chapter.test_mode === "qcm") {
+    showQcmQuestion();
+  } else {
+    showWrittenTestQuestion();
+  }
 }
 
-function showTestQuestion() {
+/* =========================
+   TEST ÉCRIT
+========================= */
+
+function showWrittenTestQuestion() {
   if (currentTestIndex >= testQuestions.length) {
     showTestFinished();
     return;
@@ -518,12 +533,11 @@ function showTestQuestion() {
   container.appendChild(box);
 
   const input = document.getElementById("test-answer");
-
   input.focus();
 
   document
     .getElementById("validate-test")
-    .addEventListener("click", validateTestAnswer);
+    .addEventListener("click", validateWrittenTestAnswer);
 
   document
     .getElementById("quit-test")
@@ -537,12 +551,12 @@ function showTestQuestion() {
 
   input.addEventListener("keydown", (event) => {
     if (event.key === "Enter") {
-      validateTestAnswer();
+      validateWrittenTestAnswer();
     }
   });
 }
 
-function validateTestAnswer() {
+function validateWrittenTestAnswer() {
   const input = document.getElementById("test-answer");
   const button = document.getElementById("validate-test");
   const feedback = document.getElementById("test-feedback");
@@ -584,6 +598,159 @@ function validateTestAnswer() {
     `;
   }
 
+  addNextTestButton(feedback, showWrittenTestQuestion);
+}
+
+/* =========================
+   TEST QCM
+========================= */
+
+function buildQcmQuestions(data) {
+  const questions = [];
+
+  data.forEach(card => {
+    if (
+      card.wrong_answer_1 &&
+      card.wrong_answer_2 &&
+      card.wrong_answer_3
+    ) {
+      questions.push({
+        question: card.question,
+        answer: card.answer,
+        choices: [
+          card.answer,
+          card.wrong_answer_1,
+          card.wrong_answer_2,
+          card.wrong_answer_3
+        ]
+      });
+    }
+  });
+
+  return questions;
+}
+
+function showQcmQuestion() {
+  if (currentTestIndex >= testQuestions.length) {
+    showTestFinished();
+    return;
+  }
+
+  const current = testQuestions[currentTestIndex];
+
+  title.textContent = currentChapter.name;
+
+  subtitle.textContent =
+    `Question ${currentTestIndex + 1} sur ${testQuestions.length} • Score ${testScore}`;
+
+  container.innerHTML = "";
+
+  const box = document.createElement("div");
+  box.className = "review-box";
+
+  const choices = [...current.choices];
+  shuffleArray(choices);
+
+  let choicesHtml = "";
+
+  choices.forEach(choice => {
+    choicesHtml += `
+      <button class="qcm-button" data-answer="${escapeHtmlAttribute(choice)}">
+        ${choice}
+      </button>
+    `;
+  });
+
+  box.innerHTML = `
+    <div class="review-question">
+      ${current.question}
+    </div>
+
+    <div class="qcm-grid">
+      ${choicesHtml}
+    </div>
+
+    <div id="qcm-feedback" class="test-feedback hidden"></div>
+
+    <button id="quit-test" class="secondary-button review-back-button">
+      ← Retour
+    </button>
+  `;
+
+  container.appendChild(box);
+
+  const buttons = document.querySelectorAll(".qcm-button");
+
+  buttons.forEach(button => {
+    button.addEventListener("click", () => {
+      validateQcmAnswer(button);
+    });
+  });
+
+  document
+    .getElementById("quit-test")
+    .addEventListener("click", () => {
+      showModes(currentChapter);
+    });
+}
+
+function validateQcmAnswer(selectedButton) {
+  const current = testQuestions[currentTestIndex];
+  const selectedAnswer = selectedButton.dataset.answer;
+  const feedback = document.getElementById("qcm-feedback");
+
+  const buttons = document.querySelectorAll(".qcm-button");
+
+  buttons.forEach(button => {
+    button.disabled = true;
+
+    const buttonAnswer = button.dataset.answer;
+
+    if (
+      normalizeAnswer(buttonAnswer) ===
+      normalizeAnswer(current.answer)
+    ) {
+      button.classList.add("qcm-correct");
+    }
+  });
+
+  const isCorrect =
+    normalizeAnswer(selectedAnswer) ===
+    normalizeAnswer(current.answer);
+
+  if (isCorrect) {
+    testScore++;
+
+    feedback.innerHTML = `
+      <div class="test-correct">
+        ✅ Bonne réponse !
+      </div>
+    `;
+  } else {
+    selectedButton.classList.add("qcm-wrong");
+
+    feedback.innerHTML = `
+      <div class="test-wrong">
+        ❌ Mauvaise réponse
+      </div>
+
+      <div class="test-correction">
+        Bonne réponse :
+        <strong>${current.answer}</strong>
+      </div>
+    `;
+  }
+
+  feedback.classList.remove("hidden");
+
+  addNextTestButton(feedback, showQcmQuestion);
+}
+
+/* =========================
+   BOUTON QUESTION SUIVANTE
+========================= */
+
+function addNextTestButton(feedback, nextFunction) {
   const nextButton = document.createElement("button");
 
   nextButton.className = "main-button test-next-button";
@@ -591,7 +758,7 @@ function validateTestAnswer() {
 
   nextButton.addEventListener("click", () => {
     currentTestIndex++;
-    showTestQuestion();
+    nextFunction();
   });
 
   feedback.appendChild(nextButton);
@@ -669,6 +836,7 @@ async function loadCards(chapter) {
 
   if (error) {
     console.error(error);
+
     container.innerHTML =
       "<p>Impossible de charger les questions.</p>";
 
@@ -686,7 +854,7 @@ async function loadCards(chapter) {
 }
 
 /* =========================
-   CONSTRUCTION DES QUESTIONS
+   CONSTRUCTION QUESTIONS
 ========================= */
 
 function buildQuestions(data, direction) {
@@ -716,7 +884,7 @@ function buildQuestions(data, direction) {
 }
 
 /* =========================
-   NORMALISATION DES RÉPONSES
+   NORMALISATION
 ========================= */
 
 function normalizeAnswer(text) {
@@ -759,6 +927,15 @@ function shuffleArray(array) {
       array[i]
     ];
   }
+}
+
+function escapeHtmlAttribute(text) {
+  return String(text)
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
 }
 
 loadSubjects();
