@@ -131,6 +131,7 @@ function showModes(chapter) {
 
   addBackButton(() => loadChapters(currentSubject));
 
+  /* Révision */
   const revisionCard = document.createElement("div");
   revisionCard.className = "subject-card";
 
@@ -143,25 +144,47 @@ function showModes(chapter) {
   `;
 
   revisionCard.addEventListener("click", () => {
-    showReviewDirection();
+    if (currentChapter.direction_mode === "single") {
+      startReview(currentChapter, "forward");
+    } else {
+      showReviewDirection();
+    }
   });
 
   container.appendChild(revisionCard);
 
+  /* Test */
   const testCard = document.createElement("div");
-  testCard.className = "subject-card";
 
-  testCard.innerHTML = `
-    <div class="subject-icon">🎯</div>
-    <div class="subject-name">Test</div>
-    <div class="mode-description">
-      Écris ta réponse et obtiens ton score.
-    </div>
-  `;
+  if (currentChapter.test_mode === "disabled") {
+    testCard.className = "subject-card disabled-card";
 
-  testCard.addEventListener("click", () => {
-    showTestDirection();
-  });
+    testCard.innerHTML = `
+      <div class="subject-icon">🎯</div>
+      <div class="subject-name">Test</div>
+      <div class="mode-description">
+        QCM bientôt disponible
+      </div>
+    `;
+  } else {
+    testCard.className = "subject-card";
+
+    testCard.innerHTML = `
+      <div class="subject-icon">🎯</div>
+      <div class="subject-name">Test</div>
+      <div class="mode-description">
+        Écris ta réponse et obtiens ton score.
+      </div>
+    `;
+
+    testCard.addEventListener("click", () => {
+      if (currentChapter.direction_mode === "single") {
+        startTest(currentChapter, "forward");
+      } else {
+        showTestDirection();
+      }
+    });
+  }
 
   container.appendChild(testCard);
 }
@@ -205,44 +228,44 @@ function showTestDirection() {
 ========================= */
 
 function addDirectionCards(callback) {
-  const countryToCapital = document.createElement("div");
-  countryToCapital.className = "subject-card";
+  const forwardCard = document.createElement("div");
+  forwardCard.className = "subject-card";
 
-  countryToCapital.innerHTML = `
-    <div class="subject-icon">🌍</div>
-    <div class="subject-name">Pays → Capitale</div>
+  forwardCard.innerHTML = `
+    <div class="subject-icon">➡️</div>
+    <div class="subject-name">Sens normal</div>
     <div class="mode-description">
       Exemple : Suisse → Berne
     </div>
   `;
 
-  countryToCapital.addEventListener("click", () => {
+  forwardCard.addEventListener("click", () => {
     callback("forward");
   });
 
-  container.appendChild(countryToCapital);
+  container.appendChild(forwardCard);
 
-  const capitalToCountry = document.createElement("div");
-  capitalToCountry.className = "subject-card";
+  const reverseCard = document.createElement("div");
+  reverseCard.className = "subject-card";
 
-  capitalToCountry.innerHTML = `
-    <div class="subject-icon">🏙️</div>
-    <div class="subject-name">Capitale → Pays</div>
+  reverseCard.innerHTML = `
+    <div class="subject-icon">⬅️</div>
+    <div class="subject-name">Sens inverse</div>
     <div class="mode-description">
       Exemple : Berne → Suisse
     </div>
   `;
 
-  capitalToCountry.addEventListener("click", () => {
+  reverseCard.addEventListener("click", () => {
     callback("reverse");
   });
 
-  container.appendChild(capitalToCountry);
+  container.appendChild(reverseCard);
 
-  const bothDirections = document.createElement("div");
-  bothDirections.className = "subject-card";
+  const bothCard = document.createElement("div");
+  bothCard.className = "subject-card";
 
-  bothDirections.innerHTML = `
+  bothCard.innerHTML = `
     <div class="subject-icon">🔀</div>
     <div class="subject-name">Les deux</div>
     <div class="mode-description">
@@ -250,11 +273,11 @@ function addDirectionCards(callback) {
     </div>
   `;
 
-  bothDirections.addEventListener("click", () => {
+  bothCard.addEventListener("click", () => {
     callback("both");
   });
 
-  container.appendChild(bothDirections);
+  container.appendChild(bothCard);
 }
 
 /* =========================
@@ -307,7 +330,6 @@ function showReviewQuestion() {
     </button>
 
     <div id="answer-area" class="answer-area hidden">
-
       <div class="review-answer">
         ${current.answer}
       </div>
@@ -321,7 +343,6 @@ function showReviewQuestion() {
           ✅ Je savais
         </button>
       </div>
-
     </div>
 
     <button id="quit-review" class="secondary-button review-back-button">
@@ -334,7 +355,11 @@ function showReviewQuestion() {
   document
     .getElementById("quit-review")
     .addEventListener("click", () => {
-      showReviewDirection();
+      if (currentChapter.direction_mode === "single") {
+        showModes(currentChapter);
+      } else {
+        showReviewDirection();
+      }
     });
 
   document
@@ -351,8 +376,13 @@ function showReviewQuestion() {
 }
 
 function showAnswer() {
-  document.getElementById("answer-area").classList.remove("hidden");
-  document.getElementById("show-answer").classList.add("hidden");
+  document
+    .getElementById("answer-area")
+    .classList.remove("hidden");
+
+  document
+    .getElementById("show-answer")
+    .classList.add("hidden");
 }
 
 function answerCorrect() {
@@ -402,7 +432,11 @@ function showReviewFinished() {
   document
     .getElementById("restart-review")
     .addEventListener("click", () => {
-      showReviewDirection();
+      if (currentChapter.direction_mode === "single") {
+        startReview(currentChapter, "forward");
+      } else {
+        showReviewDirection();
+      }
     });
 
   document
@@ -426,15 +460,16 @@ async function startTest(chapter, direction) {
 
   if (!data) return;
 
-testQuestions = buildQuestions(data, direction);
+  testQuestions = buildQuestions(data, direction);
 
-shuffleArray(testQuestions);
+  shuffleArray(testQuestions);
 
-/* Limite le test à 20 questions maximum */
-testQuestions = testQuestions.slice(0, 20);
+  /* Maximum 20 questions */
+  testQuestions = testQuestions.slice(0, 20);
 
-currentTestIndex = 0;
-testScore = 0;
+  currentTestIndex = 0;
+  testScore = 0;
+
   showTestQuestion();
 }
 
@@ -447,6 +482,7 @@ function showTestQuestion() {
   const current = testQuestions[currentTestIndex];
 
   title.textContent = currentChapter.name;
+
   subtitle.textContent =
     `Question ${currentTestIndex + 1} sur ${testQuestions.length} • Score ${testScore}`;
 
@@ -482,6 +518,7 @@ function showTestQuestion() {
   container.appendChild(box);
 
   const input = document.getElementById("test-answer");
+
   input.focus();
 
   document
@@ -491,7 +528,11 @@ function showTestQuestion() {
   document
     .getElementById("quit-test")
     .addEventListener("click", () => {
-      showTestDirection();
+      if (currentChapter.direction_mode === "single") {
+        showModes(currentChapter);
+      } else {
+        showTestDirection();
+      }
     });
 
   input.addEventListener("keydown", (event) => {
@@ -537,12 +578,14 @@ function validateTestAnswer() {
       </div>
 
       <div class="test-correction">
-        Réponse : <strong>${current.answer}</strong>
+        Réponse :
+        <strong>${current.answer}</strong>
       </div>
     `;
   }
 
   const nextButton = document.createElement("button");
+
   nextButton.className = "main-button test-next-button";
   nextButton.textContent = "Question suivante";
 
@@ -560,11 +603,15 @@ function validateTestAnswer() {
 
 function showTestFinished() {
   const total = testQuestions.length;
+
   const percent =
-    total > 0 ? Math.round((testScore / total) * 100) : 0;
+    total > 0
+      ? Math.round((testScore / total) * 100)
+      : 0;
 
   title.textContent = "Test terminé";
-  subtitle.textContent = `${testScore} bonne(s) réponse(s) sur ${total}`;
+  subtitle.textContent =
+    `${testScore} bonne(s) réponse(s) sur ${total}`;
 
   container.innerHTML = "";
 
@@ -594,7 +641,11 @@ function showTestFinished() {
   document
     .getElementById("restart-test")
     .addEventListener("click", () => {
-      showTestDirection();
+      if (currentChapter.direction_mode === "single") {
+        startTest(currentChapter, "forward");
+      } else {
+        showTestDirection();
+      }
     });
 
   document
@@ -618,12 +669,16 @@ async function loadCards(chapter) {
 
   if (error) {
     console.error(error);
-    container.innerHTML = "<p>Impossible de charger les questions.</p>";
+    container.innerHTML =
+      "<p>Impossible de charger les questions.</p>";
+
     return null;
   }
 
   if (!data || data.length === 0) {
-    container.innerHTML = "<p>Aucune question dans ce chapitre.</p>";
+    container.innerHTML =
+      "<p>Aucune question dans ce chapitre.</p>";
+
     return null;
   }
 
@@ -681,6 +736,7 @@ function normalizeAnswer(text) {
 
 function addBackButton(action) {
   const backButton = document.createElement("div");
+
   backButton.className = "subject-card back-card";
 
   backButton.innerHTML = `
@@ -695,7 +751,8 @@ function addBackButton(action) {
 
 function shuffleArray(array) {
   for (let i = array.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
+    const j =
+      Math.floor(Math.random() * (i + 1));
 
     [array[i], array[j]] = [
       array[j],
