@@ -29,7 +29,7 @@ header p {
 }
 
 /* =========================
-   CARTES MATIÈRES / CHAPITRES
+   MATIÈRES / CHAPITRES
 ========================= */
 
 .subjects-grid {
@@ -45,12 +45,17 @@ header p {
   text-align: center;
   box-shadow: 0 6px 18px rgba(0,0,0,0.08);
   cursor: pointer;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
 .subject-card:hover {
   transform: translateY(-3px);
-  box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+
+  box-shadow:
+    0 10px 25px rgba(0,0,0,0.1);
 }
 
 .subject-icon {
@@ -77,83 +82,108 @@ header p {
 
 .disabled-card:hover {
   transform: none;
-  box-shadow: 0 6px 18px rgba(0,0,0,0.08);
 }
 
 /* =========================
-   MODE RÉVISION / TEST
+   RÉVISION
 ========================= */
 
 .review-box {
   grid-column: 1 / -1;
+
   width: 100%;
   max-width: 700px;
+
   margin: 0 auto;
+
   background: white;
+
   border-radius: 28px;
+
   padding: 50px 35px;
+
   text-align: center;
-  box-shadow: 0 8px 30px rgba(0,0,0,0.08);
+
+  box-shadow:
+    0 8px 30px rgba(0,0,0,0.08);
 }
 
 .review-question {
   font-size: 32px;
   font-weight: 700;
   line-height: 1.35;
+
   margin-bottom: 40px;
 }
 
 .review-answer {
   font-size: 40px;
   font-weight: 800;
+
   line-height: 1.3;
+
   margin: 35px 0;
 }
 
-.hidden,
-.answer-area.hidden {
+.hidden {
   display: none !important;
 }
 
 /* =========================
-   BOUTONS
+   BOUTONS GÉNÉRAUX
 ========================= */
 
 .main-button,
 .secondary-button,
 .review-button {
   width: 100%;
+
   border: none;
+
   border-radius: 18px;
+
   padding: 20px 24px;
+
   font-size: 20px;
   font-weight: 700;
+
   cursor: pointer;
-  transition: transform 0.15s ease, opacity 0.15s ease;
+
+  transition:
+    transform 0.15s ease,
+    opacity 0.15s ease;
 }
 
 .main-button {
   background: #111827;
   color: white;
+
   min-height: 68px;
 }
 
 .secondary-button {
   background: #e5e7eb;
   color: #111827;
+
   margin-top: 15px;
 }
 
 .review-actions {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+
+  grid-template-columns:
+    1fr 1fr;
+
   gap: 18px;
+
   margin-top: 30px;
 }
 
 .review-button {
   min-height: 72px;
+
   background: #f3f4f6;
+
   color: #111827;
 }
 
@@ -165,31 +195,21 @@ header p {
   background: #dcfce7;
 }
 
-.main-button:hover,
-.secondary-button:hover,
-.review-button:hover {
-  transform: translateY(-2px);
-}
-
-.main-button:active,
-.secondary-button:active,
-.review-button:active {
-  transform: scale(0.98);
-}
-
 .review-back-button {
   margin-top: 40px;
 }
 
 /* =========================
-   ZONE DE SAISIE TEST
+   TEST ÉCRIT
 ========================= */
 
 .test-input {
   width: 100%;
   min-height: 80px;
 
-  border: 2px solid #e5e7eb;
+  border:
+    2px solid #e5e7eb;
+
   border-radius: 20px;
 
   padding: 20px 24px;
@@ -197,62 +217,41 @@ header p {
   font-size: 24px;
   font-weight: 600;
 
-  background: #ffffff;
+  background: white;
   color: #111827;
 
   text-align: center;
 
   outline: none;
 
-  box-shadow: 0 6px 18px rgba(0,0,0,0.06);
+  box-shadow:
+    0 6px 18px rgba(0,0,0,0.06);
 
   margin-bottom: 22px;
-
-  transition:
-    border-color 0.15s ease,
-    box-shadow 0.15s ease,
-    transform 0.15s ease;
-}
-
-.test-input::placeholder {
-  color: #9ca3af;
-  font-weight: 500;
 }
 
 .test-input:focus {
   border-color: #111827;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.10);
-  transform: translateY(-1px);
-}
 
-.test-input:disabled {
-  background: #f3f4f6;
-  color: #6b7280;
+  box-shadow:
+    0 8px 24px rgba(0,0,0,0.10);
 }
-
-/* =========================
-   FEEDBACK TEST
-========================= */
 
 .test-feedback {
   margin-top: 25px;
+
   font-size: 20px;
 }
 
-.test-correct {
-  font-size: 24px;
-  font-weight: 700;
-  margin-bottom: 20px;
-}
-
+.test-correct,
 .test-wrong {
   font-size: 24px;
   font-weight: 700;
-  margin-bottom: 10px;
+
+  margin-bottom: 16px;
 }
 
 .test-correction {
-  font-size: 20px;
   margin-bottom: 25px;
 }
 
@@ -261,22 +260,328 @@ header p {
 }
 
 .test-percent {
-  font-size: 38px;
+  font-size: 42px;
   font-weight: 800;
-  margin: 20px 0 35px;
+
+  margin: 20px 0;
 }
 
-/* =========================
-   FIN DE SESSION
-========================= */
+.result-message {
+  font-size: 20px;
+
+  margin-bottom: 35px;
+
+  color: #4b5563;
+}
 
 .finish-icon {
   font-size: 64px;
+
   margin-bottom: 15px;
 }
 
 /* =========================
-   MOBILE / TABLETTE
+   NOUVEAU DESIGN QCM
+========================= */
+
+.qcm-card {
+  grid-column: 1 / -1;
+
+  width: 100%;
+  max-width: 760px;
+
+  margin: 0 auto;
+
+  background: white;
+
+  border-radius: 30px;
+
+  padding: 32px;
+
+  box-shadow:
+    0 12px 40px rgba(0,0,0,0.08);
+}
+
+/* haut : question + score */
+
+.qcm-topbar {
+  display: flex;
+
+  justify-content:
+    space-between;
+
+  align-items: center;
+
+  gap: 15px;
+
+  margin-bottom: 16px;
+}
+
+.qcm-counter {
+  font-size: 16px;
+  font-weight: 700;
+
+  color: #111827;
+}
+
+.qcm-counter span {
+  color: #9ca3af;
+  font-weight: 500;
+}
+
+.qcm-score {
+  background: #f3f4f6;
+
+  border-radius: 30px;
+
+  padding: 9px 15px;
+
+  font-size: 15px;
+  font-weight: 700;
+
+  white-space: nowrap;
+}
+
+/* barre de progression */
+
+.qcm-progress {
+  width: 100%;
+  height: 9px;
+
+  background: #e5e7eb;
+
+  border-radius: 20px;
+
+  overflow: hidden;
+
+  margin-bottom: 38px;
+}
+
+.qcm-progress-bar {
+  height: 100%;
+
+  background: #111827;
+
+  border-radius: 20px;
+
+  transition:
+    width 0.3s ease;
+}
+
+/* question */
+
+.qcm-question {
+  font-size: 30px;
+  font-weight: 800;
+
+  line-height: 1.35;
+
+  text-align: center;
+
+  margin-bottom: 35px;
+}
+
+/* réponses */
+
+.qcm-grid {
+  display: grid;
+
+  grid-template-columns:
+    1fr 1fr;
+
+  gap: 16px;
+}
+
+.qcm-button {
+  width: 100%;
+
+  min-height: 100px;
+
+  border:
+    2px solid #e5e7eb;
+
+  border-radius: 20px;
+
+  padding: 18px;
+
+  background: #ffffff;
+
+  color: #111827;
+
+  display: flex;
+
+  align-items: center;
+
+  gap: 15px;
+
+  text-align: left;
+
+  cursor: pointer;
+
+  box-shadow:
+    0 5px 15px rgba(0,0,0,0.04);
+
+  transition:
+    transform 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    background 0.15s ease;
+}
+
+.qcm-button:hover:not(:disabled) {
+  transform:
+    translateY(-2px);
+
+  border-color: #9ca3af;
+
+  box-shadow:
+    0 9px 22px rgba(0,0,0,0.08);
+}
+
+/* lettre A B C D */
+
+.qcm-letter {
+  flex-shrink: 0;
+
+  width: 44px;
+  height: 44px;
+
+  display: flex;
+
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 12px;
+
+  background: #f3f4f6;
+
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.qcm-choice-text {
+  font-size: 18px;
+  font-weight: 650;
+
+  line-height: 1.35;
+}
+
+/* réponse correcte */
+
+.qcm-correct {
+  background:
+    #ecfdf3 !important;
+
+  border-color:
+    #4ade80 !important;
+}
+
+.qcm-correct .qcm-letter {
+  background: #22c55e;
+
+  color: white;
+}
+
+/* réponse fausse */
+
+.qcm-wrong {
+  background:
+    #fff1f2 !important;
+
+  border-color:
+    #fb7185 !important;
+}
+
+.qcm-wrong .qcm-letter {
+  background: #ef4444;
+
+  color: white;
+}
+
+/* feedback */
+
+.qcm-feedback {
+  margin-top: 28px;
+
+  padding-top: 25px;
+
+  border-top:
+    1px solid #e5e7eb;
+
+  text-align: center;
+}
+
+.qcm-feedback-title {
+  font-size: 24px;
+  font-weight: 800;
+
+  margin-bottom: 8px;
+}
+
+.qcm-feedback-title.correct {
+  color: #15803d;
+}
+
+.qcm-feedback-title.wrong {
+  color: #b91c1c;
+}
+
+.qcm-feedback-answer {
+  font-size: 18px;
+
+  color: #4b5563;
+
+  margin-bottom: 22px;
+}
+
+/* bouton suivant */
+
+.qcm-next-button {
+  width: 100%;
+
+  min-height: 65px;
+
+  border: none;
+
+  border-radius: 18px;
+
+  padding: 18px 22px;
+
+  background: #111827;
+
+  color: white;
+
+  font-size: 19px;
+  font-weight: 800;
+
+  cursor: pointer;
+
+  margin-top: 8px;
+}
+
+/* quitter */
+
+.qcm-back-button {
+  width: 100%;
+
+  border: none;
+
+  background: transparent;
+
+  color: #6b7280;
+
+  font-size: 16px;
+  font-weight: 600;
+
+  cursor: pointer;
+
+  margin-top: 32px;
+
+  padding: 14px;
+}
+
+/* =========================
+   MOBILE
 ========================= */
 
 @media (max-width: 600px) {
@@ -286,13 +591,15 @@ header p {
   }
 
   .subjects-grid {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns:
+      1fr 1fr;
+
     gap: 12px;
   }
 
   .subject-card {
-    padding: 24px 12px;
-    border-radius: 18px;
+    padding:
+      24px 12px;
   }
 
   .subject-icon {
@@ -304,35 +611,77 @@ header p {
   }
 
   .review-box {
-    padding: 35px 20px;
-    border-radius: 22px;
+    padding:
+      35px 20px;
   }
 
   .review-question {
     font-size: 26px;
-    margin-bottom: 30px;
   }
 
   .review-answer {
     font-size: 34px;
   }
 
-  .main-button,
-  .secondary-button,
-  .review-button {
-    font-size: 18px;
-    padding: 18px;
-  }
-
   .review-actions {
     grid-template-columns: 1fr;
-    gap: 12px;
   }
 
   .test-input {
     min-height: 74px;
+
     font-size: 22px;
-    padding: 18px 16px;
-    border-radius: 18px;
+
+    padding:
+      18px 16px;
+  }
+
+  .qcm-card {
+    padding:
+      24px 16px;
+
+    border-radius: 24px;
+  }
+
+  .qcm-topbar {
+    margin-bottom: 14px;
+  }
+
+  .qcm-counter {
+    font-size: 14px;
+  }
+
+  .qcm-score {
+    font-size: 14px;
+
+    padding:
+      8px 12px;
+  }
+
+  .qcm-question {
+    font-size: 25px;
+
+    margin-bottom: 28px;
+  }
+
+  .qcm-grid {
+    grid-template-columns: 1fr;
+
+    gap: 12px;
+  }
+
+  .qcm-button {
+    min-height: 78px;
+
+    padding: 14px;
+  }
+
+  .qcm-letter {
+    width: 40px;
+    height: 40px;
+  }
+
+  .qcm-choice-text {
+    font-size: 17px;
   }
 }
