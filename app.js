@@ -139,7 +139,7 @@ function showModes(chapter) {
   `;
 
   revisionCard.addEventListener("click", () => {
-    startReview(chapter);
+    showReviewDirection();
   });
 
   container.appendChild(revisionCard);
@@ -159,10 +159,74 @@ function showModes(chapter) {
 }
 
 /* =========================
+   CHOIX DU SENS
+========================= */
+
+function showReviewDirection() {
+  title.textContent = currentChapter.name;
+  subtitle.textContent = "Choisis le sens de révision";
+
+  container.innerHTML = "";
+
+  addBackButton(() => showModes(currentChapter));
+
+  const countryToCapital = document.createElement("div");
+  countryToCapital.className = "subject-card";
+
+  countryToCapital.innerHTML = `
+    <div class="subject-icon">🌍</div>
+    <div class="subject-name">Pays → Capitale</div>
+    <div class="mode-description">
+      Exemple : Suisse → Berne
+    </div>
+  `;
+
+  countryToCapital.addEventListener("click", () => {
+    startReview(currentChapter, "forward");
+  });
+
+  container.appendChild(countryToCapital);
+
+  const capitalToCountry = document.createElement("div");
+  capitalToCountry.className = "subject-card";
+
+  capitalToCountry.innerHTML = `
+    <div class="subject-icon">🏙️</div>
+    <div class="subject-name">Capitale → Pays</div>
+    <div class="mode-description">
+      Exemple : Berne → Suisse
+    </div>
+  `;
+
+  capitalToCountry.addEventListener("click", () => {
+    startReview(currentChapter, "reverse");
+  });
+
+  container.appendChild(capitalToCountry);
+
+  const bothDirections = document.createElement("div");
+  bothDirections.className = "subject-card";
+
+  bothDirections.innerHTML = `
+    <div class="subject-icon">🔀</div>
+    <div class="subject-name">Les deux</div>
+    <div class="mode-description">
+      Mélange pays → capitale et capitale → pays
+    </div>
+  `;
+
+  bothDirections.addEventListener("click", () => {
+    startReview(currentChapter, "both");
+  });
+
+  container.appendChild(bothDirections);
+}
+
+/* =========================
    MODE RÉVISION
 ========================= */
 
-async function startReview(chapter) {
+async function startReview(chapter, direction) {
   title.textContent = chapter.name;
   subtitle.textContent = "Mode Révision";
 
@@ -189,19 +253,23 @@ async function startReview(chapter) {
   reviewQuestions = [];
 
   data.forEach(card => {
+    if (direction === "forward" || direction === "both") {
+      reviewQuestions.push({
+        question: card.question,
+        answer: card.answer
+      });
+    }
 
-    reviewQuestions.push({
-      question: card.question,
-      answer: card.answer
-    });
-
-    if (card.reverse_question && card.reverse_answer) {
+    if (
+      (direction === "reverse" || direction === "both") &&
+      card.reverse_question &&
+      card.reverse_answer
+    ) {
       reviewQuestions.push({
         question: card.reverse_question,
         answer: card.reverse_answer
       });
     }
-
   });
 
   shuffleArray(reviewQuestions);
@@ -220,7 +288,6 @@ function showReviewQuestion() {
   const current = reviewQuestions[currentQuestionIndex];
 
   title.textContent = currentChapter.name;
-
   subtitle.textContent =
     `Question ${currentQuestionIndex + 1} sur ${reviewQuestions.length}`;
 
@@ -311,7 +378,7 @@ function showReviewFinished() {
     <h2>Révision terminée</h2>
 
     <button id="restart-review" class="main-button">
-      Recommencer
+      Nouvelle révision
     </button>
 
     <button id="back-chapter" class="secondary-button">
@@ -324,7 +391,7 @@ function showReviewFinished() {
   document
     .getElementById("restart-review")
     .addEventListener("click", () => {
-      startReview(currentChapter);
+      showReviewDirection();
     });
 
   document
