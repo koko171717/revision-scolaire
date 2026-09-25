@@ -297,6 +297,10 @@ function showReviewQuestion() {
   reviewBox.className = "review-box";
 
   reviewBox.innerHTML = `
+    <button id="quit-review" class="secondary-button">
+      ← Retour
+    </button>
+
     <div class="review-question">
       ${current.question}
     </div>
@@ -325,6 +329,12 @@ function showReviewQuestion() {
   `;
 
   container.appendChild(reviewBox);
+
+  document
+    .getElementById("quit-review")
+    .addEventListener("click", () => {
+      showReviewDirection();
+    });
 
   document
     .getElementById("show-answer")
