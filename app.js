@@ -194,7 +194,7 @@ function showModes(chapter) {
 }
 
 /* =========================
-   CHOIX DU SENS - RÉVISION
+   CHOIX DU SENS
 ========================= */
 
 function showReviewDirection() {
@@ -205,14 +205,10 @@ function showReviewDirection() {
 
   addBackButton(() => showModes(currentChapter));
 
-  addDirectionCards((direction) => {
+  addDirectionCards(direction => {
     startReview(currentChapter, direction);
   });
 }
-
-/* =========================
-   CHOIX DU SENS - TEST
-========================= */
 
 function showTestDirection() {
   title.textContent = currentChapter.name;
@@ -222,14 +218,10 @@ function showTestDirection() {
 
   addBackButton(() => showModes(currentChapter));
 
-  addDirectionCards((direction) => {
+  addDirectionCards(direction => {
     startTest(currentChapter, direction);
   });
 }
-
-/* =========================
-   CARTES DE DIRECTION
-========================= */
 
 function addDirectionCards(callback) {
   const forwardCard = document.createElement("div");
@@ -334,11 +326,13 @@ function showReviewQuestion() {
     </button>
 
     <div id="answer-area" class="answer-area hidden">
+
       <div class="review-answer">
         ${current.answer}
       </div>
 
       <div class="review-actions">
+
         <button id="wrong-button" class="review-button">
           ❌ À revoir
         </button>
@@ -346,7 +340,9 @@ function showReviewQuestion() {
         <button id="correct-button" class="review-button">
           ✅ Je savais
         </button>
+
       </div>
+
     </div>
 
     <button id="quit-review" class="secondary-button review-back-button">
@@ -395,7 +391,8 @@ function answerCorrect() {
 }
 
 function answerWrong() {
-  const missedQuestion = reviewQuestions[currentQuestionIndex];
+  const missedQuestion =
+    reviewQuestions[currentQuestionIndex];
 
   reviewQuestions.push(missedQuestion);
 
@@ -451,7 +448,7 @@ function showReviewFinished() {
 }
 
 /* =========================
-   MODE TEST
+   DÉMARRAGE TEST
 ========================= */
 
 async function startTest(chapter, direction) {
@@ -533,6 +530,7 @@ function showWrittenTestQuestion() {
   container.appendChild(box);
 
   const input = document.getElementById("test-answer");
+
   input.focus();
 
   document
@@ -549,7 +547,7 @@ function showWrittenTestQuestion() {
       }
     });
 
-  input.addEventListener("keydown", (event) => {
+  input.addEventListener("keydown", event => {
     if (event.key === "Enter") {
       validateWrittenTestAnswer();
     }
@@ -563,14 +561,13 @@ function validateWrittenTestAnswer() {
 
   const userAnswer = input.value.trim();
 
-  if (!userAnswer) {
-    return;
-  }
+  if (!userAnswer) return;
 
   const current = testQuestions[currentTestIndex];
 
   const isCorrect =
-    normalizeAnswer(userAnswer) === normalizeAnswer(current.answer);
+    normalizeAnswer(userAnswer) ===
+    normalizeAnswer(current.answer);
 
   input.disabled = true;
   button.disabled = true;
@@ -592,17 +589,20 @@ function validateWrittenTestAnswer() {
       </div>
 
       <div class="test-correction">
-        Réponse :
+        Bonne réponse :
         <strong>${current.answer}</strong>
       </div>
     `;
   }
 
-  addNextTestButton(feedback, showWrittenTestQuestion);
+  addNextTestButton(
+    feedback,
+    showWrittenTestQuestion
+  );
 }
 
 /* =========================
-   TEST QCM
+   QCM
 ========================= */
 
 function buildQcmQuestions(data) {
@@ -640,29 +640,63 @@ function showQcmQuestion() {
 
   title.textContent = currentChapter.name;
 
-  subtitle.textContent =
-    `Question ${currentTestIndex + 1} sur ${testQuestions.length} • Score ${testScore}`;
+  subtitle.textContent = "Mode Test";
 
   container.innerHTML = "";
 
   const box = document.createElement("div");
-  box.className = "review-box";
+  box.className = "qcm-card";
 
   const choices = [...current.choices];
   shuffleArray(choices);
 
   let choicesHtml = "";
 
-  choices.forEach(choice => {
+  const letters = ["A", "B", "C", "D"];
+
+  choices.forEach((choice, index) => {
     choicesHtml += `
-      <button class="qcm-button" data-answer="${escapeHtmlAttribute(choice)}">
-        ${choice}
+      <button
+        class="qcm-button"
+        data-answer="${escapeHtmlAttribute(choice)}"
+      >
+        <span class="qcm-letter">
+          ${letters[index]}
+        </span>
+
+        <span class="qcm-choice-text">
+          ${choice}
+        </span>
       </button>
     `;
   });
 
+  const progress =
+    ((currentTestIndex + 1) / testQuestions.length) * 100;
+
   box.innerHTML = `
-    <div class="review-question">
+
+    <div class="qcm-topbar">
+
+      <div class="qcm-counter">
+        Question ${currentTestIndex + 1}
+        <span>sur ${testQuestions.length}</span>
+      </div>
+
+      <div class="qcm-score">
+        ⭐ ${testScore} point${testScore > 1 ? "s" : ""}
+      </div>
+
+    </div>
+
+    <div class="qcm-progress">
+      <div
+        class="qcm-progress-bar"
+        style="width: ${progress}%"
+      ></div>
+    </div>
+
+    <div class="qcm-question">
       ${current.question}
     </div>
 
@@ -670,16 +704,24 @@ function showQcmQuestion() {
       ${choicesHtml}
     </div>
 
-    <div id="qcm-feedback" class="test-feedback hidden"></div>
+    <div
+      id="qcm-feedback"
+      class="qcm-feedback hidden"
+    ></div>
 
-    <button id="quit-test" class="secondary-button review-back-button">
-      ← Retour
+    <button
+      id="quit-test"
+      class="qcm-back-button"
+    >
+      ← Quitter le test
     </button>
+
   `;
 
   container.appendChild(box);
 
-  const buttons = document.querySelectorAll(".qcm-button");
+  const buttons =
+    document.querySelectorAll(".qcm-button");
 
   buttons.forEach(button => {
     button.addEventListener("click", () => {
@@ -696,15 +738,21 @@ function showQcmQuestion() {
 
 function validateQcmAnswer(selectedButton) {
   const current = testQuestions[currentTestIndex];
-  const selectedAnswer = selectedButton.dataset.answer;
-  const feedback = document.getElementById("qcm-feedback");
 
-  const buttons = document.querySelectorAll(".qcm-button");
+  const selectedAnswer =
+    selectedButton.dataset.answer;
+
+  const feedback =
+    document.getElementById("qcm-feedback");
+
+  const buttons =
+    document.querySelectorAll(".qcm-button");
 
   buttons.forEach(button => {
     button.disabled = true;
 
-    const buttonAnswer = button.dataset.answer;
+    const buttonAnswer =
+      button.dataset.answer;
 
     if (
       normalizeAnswer(buttonAnswer) ===
@@ -722,19 +770,19 @@ function validateQcmAnswer(selectedButton) {
     testScore++;
 
     feedback.innerHTML = `
-      <div class="test-correct">
-        ✅ Bonne réponse !
+      <div class="qcm-feedback-title correct">
+        ✓ Bonne réponse
       </div>
     `;
   } else {
     selectedButton.classList.add("qcm-wrong");
 
     feedback.innerHTML = `
-      <div class="test-wrong">
-        ❌ Mauvaise réponse
+      <div class="qcm-feedback-title wrong">
+        ✕ Pas tout à fait
       </div>
 
-      <div class="test-correction">
+      <div class="qcm-feedback-answer">
         Bonne réponse :
         <strong>${current.answer}</strong>
       </div>
@@ -743,22 +791,20 @@ function validateQcmAnswer(selectedButton) {
 
   feedback.classList.remove("hidden");
 
-  addNextTestButton(feedback, showQcmQuestion);
-}
+  const nextButton =
+    document.createElement("button");
 
-/* =========================
-   BOUTON QUESTION SUIVANTE
-========================= */
+  nextButton.className =
+    "qcm-next-button";
 
-function addNextTestButton(feedback, nextFunction) {
-  const nextButton = document.createElement("button");
-
-  nextButton.className = "main-button test-next-button";
-  nextButton.textContent = "Question suivante";
+  nextButton.textContent =
+    currentTestIndex + 1 === testQuestions.length
+      ? "Voir mon résultat"
+      : "Question suivante →";
 
   nextButton.addEventListener("click", () => {
     currentTestIndex++;
-    nextFunction();
+    showQcmQuestion();
   });
 
   feedback.appendChild(nextButton);
@@ -777,13 +823,22 @@ function showTestFinished() {
       : 0;
 
   title.textContent = "Test terminé";
-  subtitle.textContent =
-    `${testScore} bonne(s) réponse(s) sur ${total}`;
+  subtitle.textContent = currentChapter.name;
 
   container.innerHTML = "";
 
   const box = document.createElement("div");
   box.className = "review-box";
+
+  let message = "Continue à t'entraîner 👍";
+
+  if (percent >= 90) {
+    message = "Excellent travail ! 🌟";
+  } else if (percent >= 75) {
+    message = "Très bon résultat ! 👏";
+  } else if (percent >= 60) {
+    message = "Bien joué, encore un petit effort ! 💪";
+  }
 
   box.innerHTML = `
     <div class="finish-icon">🎯</div>
@@ -792,6 +847,10 @@ function showTestFinished() {
 
     <div class="test-percent">
       ${percent} %
+    </div>
+
+    <div class="result-message">
+      ${message}
     </div>
 
     <button id="restart-test" class="main-button">
@@ -823,7 +882,7 @@ function showTestFinished() {
 }
 
 /* =========================
-   CHARGEMENT DES CARTES
+   DONNÉES
 ========================= */
 
 async function loadCards(chapter) {
@@ -853,15 +912,14 @@ async function loadCards(chapter) {
   return data;
 }
 
-/* =========================
-   CONSTRUCTION QUESTIONS
-========================= */
-
 function buildQuestions(data, direction) {
   const questions = [];
 
   data.forEach(card => {
-    if (direction === "forward" || direction === "both") {
+    if (
+      direction === "forward" ||
+      direction === "both"
+    ) {
       questions.push({
         question: card.question,
         answer: card.answer
@@ -869,7 +927,8 @@ function buildQuestions(data, direction) {
     }
 
     if (
-      (direction === "reverse" || direction === "both") &&
+      (direction === "reverse" ||
+        direction === "both") &&
       card.reverse_question &&
       card.reverse_answer
     ) {
@@ -884,7 +943,7 @@ function buildQuestions(data, direction) {
 }
 
 /* =========================
-   NORMALISATION
+   OUTILS
 ========================= */
 
 function normalizeAnswer(text) {
@@ -898,29 +957,36 @@ function normalizeAnswer(text) {
     .trim();
 }
 
-/* =========================
-   OUTILS
-========================= */
-
 function addBackButton(action) {
-  const backButton = document.createElement("div");
+  const backButton =
+    document.createElement("div");
 
-  backButton.className = "subject-card back-card";
+  backButton.className =
+    "subject-card back-card";
 
   backButton.innerHTML = `
     <div class="subject-icon">←</div>
     <div class="subject-name">Retour</div>
   `;
 
-  backButton.addEventListener("click", action);
+  backButton.addEventListener(
+    "click",
+    action
+  );
 
   container.appendChild(backButton);
 }
 
 function shuffleArray(array) {
-  for (let i = array.length - 1; i > 0; i--) {
+  for (
+    let i = array.length - 1;
+    i > 0;
+    i--
+  ) {
     const j =
-      Math.floor(Math.random() * (i + 1));
+      Math.floor(
+        Math.random() * (i + 1)
+      );
 
     [array[i], array[j]] = [
       array[j],
