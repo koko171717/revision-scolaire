@@ -241,3 +241,6 @@ header p {
     gap: 12px;
   }
 }
+.review-back-button {
+  margin-top: 40px;
+}
