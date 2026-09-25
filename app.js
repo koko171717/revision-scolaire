@@ -16,6 +16,10 @@ let currentChapter = null;
 let reviewQuestions = [];
 let currentQuestionIndex = 0;
 
+let testQuestions = [];
+let currentTestIndex = 0;
+let testScore = 0;
+
 /* =========================
    ACCUEIL
 ========================= */
@@ -145,21 +149,25 @@ function showModes(chapter) {
   container.appendChild(revisionCard);
 
   const testCard = document.createElement("div");
-  testCard.className = "subject-card disabled-card";
+  testCard.className = "subject-card";
 
   testCard.innerHTML = `
     <div class="subject-icon">🎯</div>
     <div class="subject-name">Test</div>
     <div class="mode-description">
-      Bientôt disponible
+      Écris ta réponse et obtiens ton score.
     </div>
   `;
+
+  testCard.addEventListener("click", () => {
+    showTestDirection();
+  });
 
   container.appendChild(testCard);
 }
 
 /* =========================
-   CHOIX DU SENS
+   CHOIX DU SENS - RÉVISION
 ========================= */
 
 function showReviewDirection() {
@@ -170,6 +178,33 @@ function showReviewDirection() {
 
   addBackButton(() => showModes(currentChapter));
 
+  addDirectionCards((direction) => {
+    startReview(currentChapter, direction);
+  });
+}
+
+/* =========================
+   CHOIX DU SENS - TEST
+========================= */
+
+function showTestDirection() {
+  title.textContent = currentChapter.name;
+  subtitle.textContent = "Choisis le sens du test";
+
+  container.innerHTML = "";
+
+  addBackButton(() => showModes(currentChapter));
+
+  addDirectionCards((direction) => {
+    startTest(currentChapter, direction);
+  });
+}
+
+/* =========================
+   CARTES DE DIRECTION
+========================= */
+
+function addDirectionCards(callback) {
   const countryToCapital = document.createElement("div");
   countryToCapital.className = "subject-card";
 
@@ -182,7 +217,7 @@ function showReviewDirection() {
   `;
 
   countryToCapital.addEventListener("click", () => {
-    startReview(currentChapter, "forward");
+    callback("forward");
   });
 
   container.appendChild(countryToCapital);
@@ -199,7 +234,7 @@ function showReviewDirection() {
   `;
 
   capitalToCountry.addEventListener("click", () => {
-    startReview(currentChapter, "reverse");
+    callback("reverse");
   });
 
   container.appendChild(capitalToCountry);
@@ -211,12 +246,12 @@ function showReviewDirection() {
     <div class="subject-icon">🔀</div>
     <div class="subject-name">Les deux</div>
     <div class="mode-description">
-      Mélange pays → capitale et capitale → pays
+      Mélange les deux sens
     </div>
   `;
 
   bothDirections.addEventListener("click", () => {
-    startReview(currentChapter, "both");
+    callback("both");
   });
 
   container.appendChild(bothDirections);
@@ -232,45 +267,11 @@ async function startReview(chapter, direction) {
 
   container.innerHTML = "<p>Chargement des questions...</p>";
 
-  const { data, error } = await supabaseClient
-    .from("cards")
-    .select("*")
-    .eq("chapter_id", chapter.id)
-    .eq("active", true)
-    .order("sort_order");
+  const data = await loadCards(chapter);
 
-  if (error) {
-    console.error(error);
-    container.innerHTML = "<p>Impossible de charger les questions.</p>";
-    return;
-  }
+  if (!data) return;
 
-  if (!data || data.length === 0) {
-    container.innerHTML = "<p>Aucune question dans ce chapitre.</p>";
-    return;
-  }
-
-  reviewQuestions = [];
-
-  data.forEach(card => {
-    if (direction === "forward" || direction === "both") {
-      reviewQuestions.push({
-        question: card.question,
-        answer: card.answer
-      });
-    }
-
-    if (
-      (direction === "reverse" || direction === "both") &&
-      card.reverse_question &&
-      card.reverse_answer
-    ) {
-      reviewQuestions.push({
-        question: card.reverse_question,
-        answer: card.reverse_answer
-      });
-    }
-  });
+  reviewQuestions = buildQuestions(data, direction);
 
   shuffleArray(reviewQuestions);
 
@@ -370,7 +371,7 @@ function answerWrong() {
 }
 
 /* =========================
-   FIN DE RÉVISION
+   FIN RÉVISION
 ========================= */
 
 function showReviewFinished() {
@@ -409,6 +410,267 @@ function showReviewFinished() {
     .addEventListener("click", () => {
       showModes(currentChapter);
     });
+}
+
+/* =========================
+   MODE TEST
+========================= */
+
+async function startTest(chapter, direction) {
+  title.textContent = chapter.name;
+  subtitle.textContent = "Mode Test";
+
+  container.innerHTML = "<p>Chargement du test...</p>";
+
+  const data = await loadCards(chapter);
+
+  if (!data) return;
+
+  testQuestions = buildQuestions(data, direction);
+
+  shuffleArray(testQuestions);
+
+  currentTestIndex = 0;
+  testScore = 0;
+
+  showTestQuestion();
+}
+
+function showTestQuestion() {
+  if (currentTestIndex >= testQuestions.length) {
+    showTestFinished();
+    return;
+  }
+
+  const current = testQuestions[currentTestIndex];
+
+  title.textContent = currentChapter.name;
+  subtitle.textContent =
+    `Question ${currentTestIndex + 1} sur ${testQuestions.length} • Score ${testScore}`;
+
+  container.innerHTML = "";
+
+  const box = document.createElement("div");
+  box.className = "review-box";
+
+  box.innerHTML = `
+    <div class="review-question">
+      ${current.question}
+    </div>
+
+    <input
+      id="test-answer"
+      class="test-input"
+      type="text"
+      placeholder="Écris ta réponse"
+      autocomplete="off"
+    />
+
+    <button id="validate-test" class="main-button">
+      Valider
+    </button>
+
+    <div id="test-feedback" class="test-feedback hidden"></div>
+
+    <button id="quit-test" class="secondary-button review-back-button">
+      ← Retour
+    </button>
+  `;
+
+  container.appendChild(box);
+
+  const input = document.getElementById("test-answer");
+  input.focus();
+
+  document
+    .getElementById("validate-test")
+    .addEventListener("click", validateTestAnswer);
+
+  document
+    .getElementById("quit-test")
+    .addEventListener("click", () => {
+      showTestDirection();
+    });
+
+  input.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      validateTestAnswer();
+    }
+  });
+}
+
+function validateTestAnswer() {
+  const input = document.getElementById("test-answer");
+  const button = document.getElementById("validate-test");
+  const feedback = document.getElementById("test-feedback");
+
+  const userAnswer = input.value.trim();
+
+  if (!userAnswer) {
+    return;
+  }
+
+  const current = testQuestions[currentTestIndex];
+
+  const isCorrect =
+    normalizeAnswer(userAnswer) === normalizeAnswer(current.answer);
+
+  input.disabled = true;
+  button.disabled = true;
+
+  feedback.classList.remove("hidden");
+
+  if (isCorrect) {
+    testScore++;
+
+    feedback.innerHTML = `
+      <div class="test-correct">
+        ✅ Bonne réponse !
+      </div>
+    `;
+  } else {
+    feedback.innerHTML = `
+      <div class="test-wrong">
+        ❌ Mauvaise réponse
+      </div>
+
+      <div class="test-correction">
+        Réponse : <strong>${current.answer}</strong>
+      </div>
+    `;
+  }
+
+  const nextButton = document.createElement("button");
+  nextButton.className = "main-button test-next-button";
+  nextButton.textContent = "Question suivante";
+
+  nextButton.addEventListener("click", () => {
+    currentTestIndex++;
+    showTestQuestion();
+  });
+
+  feedback.appendChild(nextButton);
+}
+
+/* =========================
+   FIN TEST
+========================= */
+
+function showTestFinished() {
+  const total = testQuestions.length;
+  const percent =
+    total > 0 ? Math.round((testScore / total) * 100) : 0;
+
+  title.textContent = "Test terminé";
+  subtitle.textContent = `${testScore} bonne(s) réponse(s) sur ${total}`;
+
+  container.innerHTML = "";
+
+  const box = document.createElement("div");
+  box.className = "review-box";
+
+  box.innerHTML = `
+    <div class="finish-icon">🎯</div>
+
+    <h2>${testScore} / ${total}</h2>
+
+    <div class="test-percent">
+      ${percent} %
+    </div>
+
+    <button id="restart-test" class="main-button">
+      Refaire un test
+    </button>
+
+    <button id="back-test" class="secondary-button">
+      Retour au chapitre
+    </button>
+  `;
+
+  container.appendChild(box);
+
+  document
+    .getElementById("restart-test")
+    .addEventListener("click", () => {
+      showTestDirection();
+    });
+
+  document
+    .getElementById("back-test")
+    .addEventListener("click", () => {
+      showModes(currentChapter);
+    });
+}
+
+/* =========================
+   CHARGEMENT DES CARTES
+========================= */
+
+async function loadCards(chapter) {
+  const { data, error } = await supabaseClient
+    .from("cards")
+    .select("*")
+    .eq("chapter_id", chapter.id)
+    .eq("active", true)
+    .order("sort_order");
+
+  if (error) {
+    console.error(error);
+    container.innerHTML = "<p>Impossible de charger les questions.</p>";
+    return null;
+  }
+
+  if (!data || data.length === 0) {
+    container.innerHTML = "<p>Aucune question dans ce chapitre.</p>";
+    return null;
+  }
+
+  return data;
+}
+
+/* =========================
+   CONSTRUCTION DES QUESTIONS
+========================= */
+
+function buildQuestions(data, direction) {
+  const questions = [];
+
+  data.forEach(card => {
+    if (direction === "forward" || direction === "both") {
+      questions.push({
+        question: card.question,
+        answer: card.answer
+      });
+    }
+
+    if (
+      (direction === "reverse" || direction === "both") &&
+      card.reverse_question &&
+      card.reverse_answer
+    ) {
+      questions.push({
+        question: card.reverse_question,
+        answer: card.reverse_answer
+      });
+    }
+  });
+
+  return questions;
+}
+
+/* =========================
+   NORMALISATION DES RÉPONSES
+========================= */
+
+function normalizeAnswer(text) {
+  return text
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[’']/g, "")
+    .replace(/[-]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 /* =========================
