@@ -16,9 +16,11 @@ async function loadSubjects() {
 
   if (error) {
     console.error(error);
+
     container.innerHTML = `
       <p>Impossible de charger les matières.</p>
     `;
+
     return;
   }
 
