@@ -297,10 +297,6 @@ function showReviewQuestion() {
   reviewBox.className = "review-box";
 
   reviewBox.innerHTML = `
-    <button id="quit-review" class="secondary-button">
-      ← Retour
-    </button>
-
     <div class="review-question">
       ${current.question}
     </div>
@@ -326,6 +322,10 @@ function showReviewQuestion() {
       </div>
 
     </div>
+
+    <button id="quit-review" class="secondary-button review-back-button">
+      ← Retour
+    </button>
   `;
 
   container.appendChild(reviewBox);
