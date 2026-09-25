@@ -426,13 +426,15 @@ async function startTest(chapter, direction) {
 
   if (!data) return;
 
-  testQuestions = buildQuestions(data, direction);
+testQuestions = buildQuestions(data, direction);
 
-  shuffleArray(testQuestions);
+shuffleArray(testQuestions);
 
-  currentTestIndex = 0;
-  testScore = 0;
+/* Limite le test à 20 questions maximum */
+testQuestions = testQuestions.slice(0, 20);
 
+currentTestIndex = 0;
+testScore = 0;
   showTestQuestion();
 }
 
