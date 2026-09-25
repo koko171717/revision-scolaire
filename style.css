@@ -81,7 +81,7 @@ header p {
 }
 
 /* =========================
-   MODE RÉVISION
+   MODE RÉVISION / TEST
 ========================= */
 
 .review-box {
@@ -110,7 +110,6 @@ header p {
   margin: 35px 0;
 }
 
-/* Cache réellement la réponse */
 .hidden,
 .answer-area.hidden {
   display: none !important;
@@ -178,6 +177,95 @@ header p {
   transform: scale(0.98);
 }
 
+.review-back-button {
+  margin-top: 40px;
+}
+
+/* =========================
+   ZONE DE SAISIE TEST
+========================= */
+
+.test-input {
+  width: 100%;
+  min-height: 80px;
+
+  border: 2px solid #e5e7eb;
+  border-radius: 20px;
+
+  padding: 20px 24px;
+
+  font-size: 24px;
+  font-weight: 600;
+
+  background: #ffffff;
+  color: #111827;
+
+  text-align: center;
+
+  outline: none;
+
+  box-shadow: 0 6px 18px rgba(0,0,0,0.06);
+
+  margin-bottom: 22px;
+
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.15s ease;
+}
+
+.test-input::placeholder {
+  color: #9ca3af;
+  font-weight: 500;
+}
+
+.test-input:focus {
+  border-color: #111827;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.10);
+  transform: translateY(-1px);
+}
+
+.test-input:disabled {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+/* =========================
+   FEEDBACK TEST
+========================= */
+
+.test-feedback {
+  margin-top: 25px;
+  font-size: 20px;
+}
+
+.test-correct {
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 20px;
+}
+
+.test-wrong {
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+.test-correction {
+  font-size: 20px;
+  margin-bottom: 25px;
+}
+
+.test-next-button {
+  margin-top: 20px;
+}
+
+.test-percent {
+  font-size: 38px;
+  font-weight: 800;
+  margin: 20px 0 35px;
+}
+
 /* =========================
    FIN DE SESSION
 ========================= */
@@ -240,7 +328,11 @@ header p {
     grid-template-columns: 1fr;
     gap: 12px;
   }
-}
-.review-back-button {
-  margin-top: 40px;
+
+  .test-input {
+    min-height: 74px;
+    font-size: 22px;
+    padding: 18px 16px;
+    border-radius: 18px;
+  }
 }
