@@ -685,3 +685,175 @@ header p {
     font-size: 17px;
   }
 }
+/* =========================
+   DRAPEAUX - RÉVISION
+========================= */
+
+.flag-review-question {
+  font-size: 25px;
+  font-weight: 700;
+  margin-bottom: 25px;
+}
+
+.flag-display {
+  width: 100%;
+  min-height: 230px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  margin-bottom: 30px;
+
+  background: #f8fafc;
+  border-radius: 22px;
+  padding: 25px;
+}
+
+.flag-main-image {
+  display: block;
+
+  max-width: 340px;
+  max-height: 210px;
+
+  width: auto;
+  height: auto;
+
+  border-radius: 8px;
+
+  box-shadow:
+    0 8px 25px rgba(0,0,0,0.15);
+}
+
+/* =========================
+   DRAPEAUX - TEST
+========================= */
+
+.flag-test-title {
+  text-align: center;
+
+  color: #6b7280;
+
+  font-size: 18px;
+  font-weight: 600;
+
+  margin-top: 30px;
+  margin-bottom: 8px;
+}
+
+.flag-country-name {
+  text-align: center;
+
+  font-size: 34px;
+  font-weight: 800;
+
+  color: #111827;
+
+  margin-bottom: 35px;
+}
+
+.flag-qcm-grid {
+  display: grid;
+
+  grid-template-columns:
+    1fr 1fr;
+
+  gap: 18px;
+}
+
+.flag-choice-button {
+  width: 100%;
+  min-height: 170px;
+
+  border: 3px solid #e5e7eb;
+
+  border-radius: 22px;
+
+  background: white;
+
+  padding: 18px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  cursor: pointer;
+
+  overflow: hidden;
+
+  box-shadow:
+    0 6px 18px rgba(0,0,0,0.05);
+
+  transition:
+    transform 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.flag-choice-button:hover:not(:disabled) {
+  transform: translateY(-3px);
+
+  border-color: #9ca3af;
+
+  box-shadow:
+    0 10px 25px rgba(0,0,0,0.10);
+}
+
+.flag-choice-image {
+  display: block;
+
+  max-width: 100%;
+  max-height: 125px;
+
+  width: auto;
+  height: auto;
+
+  border-radius: 5px;
+
+  box-shadow:
+    0 4px 12px rgba(0,0,0,0.14);
+}
+
+.flag-choice-correct {
+  border-color: #22c55e !important;
+  background: #ecfdf3 !important;
+}
+
+.flag-choice-wrong {
+  border-color: #ef4444 !important;
+  background: #fff1f2 !important;
+}
+
+/* Mobile */
+
+@media (max-width: 600px) {
+
+  .flag-display {
+    min-height: 190px;
+    padding: 20px;
+  }
+
+  .flag-main-image {
+    max-width: 280px;
+    max-height: 170px;
+  }
+
+  .flag-country-name {
+    font-size: 29px;
+    margin-bottom: 28px;
+  }
+
+  .flag-qcm-grid {
+    gap: 12px;
+  }
+
+  .flag-choice-button {
+    min-height: 125px;
+    padding: 12px;
+    border-radius: 18px;
+  }
+
+  .flag-choice-image {
+    max-height: 95px;
+  }
+}
