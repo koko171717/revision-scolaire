@@ -1144,3 +1144,36 @@ header p {
     min-width: 650px;
   }
 }
+/* déplacement de la carte */
+
+.interactive-europe-map {
+  touch-action: none;
+  cursor: grab;
+}
+
+.interactive-europe-map.map-dragging {
+  cursor: grabbing;
+}
+
+/* évite la sélection de texte / image pendant le déplacement */
+
+.europe-map-container,
+.europe-map-container * {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* sur tablette/mobile on garde la carte dans sa zone,
+   car maintenant le déplacement se fait directement dans le SVG */
+
+@media (max-width: 700px) {
+
+  .interactive-europe-map {
+    min-width: 0 !important;
+    width: 100%;
+  }
+
+  .europe-map-container {
+    overflow: hidden;
+  }
+}
