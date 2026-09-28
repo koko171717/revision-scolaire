@@ -817,7 +817,7 @@ async function loadInteractiveMap(
 
     prepareEuropeMap(svg);
 
-    setupMapZoom(svg);
+    setupMapNavigation(svg);
 
     setupMapClicks(
       svg,
@@ -837,7 +837,7 @@ async function loadInteractiveMap(
 }
 
 /* ======================================================
-   PRÉPARATION / CADRAGE EUROPE
+   PRÉPARATION CARTE
 ====================================================== */
 
 function prepareEuropeMap(svg) {
@@ -846,6 +846,11 @@ function prepareEuropeMap(svg) {
 
   svg.classList.add(
     "interactive-europe-map"
+  );
+
+  svg.setAttribute(
+    "preserveAspectRatio",
+    "xMidYMid meet"
   );
 
   const allowedCodes =
@@ -867,7 +872,9 @@ function prepareEuropeMap(svg) {
       "map-country-wrong"
     );
 
-    if (allowedCodes.includes(code)) {
+    if (
+      allowedCodes.includes(code)
+    ) {
       group.classList.add(
         "map-country"
       );
@@ -886,114 +893,29 @@ function prepareEuropeMap(svg) {
     allowedCodes
   );
 
-  fitMapToEurope(
-    svg,
-    allowedCodes
-  );
+  setInitialEuropeView(svg);
 }
 
 /* ======================================================
-   CADRAGE AUTOMATIQUE SUR L'EUROPE
+   CADRAGE INITIAL EUROPE
 ====================================================== */
 
-function fitMapToEurope(
-  svg,
-  allowedCodes
-) {
+function setInitialEuropeView(svg) {
   /*
-    On exclut la Russie du calcul du cadrage,
-    car son territoire va jusqu'au Pacifique
-    et ferait afficher presque toute la planète.
-    La partie européenne de la Russie reste néanmoins
-    visible et cliquable.
+    Ce SVG mondial utilise :
+    viewBox="0 0 1000 507.209"
+
+    Ce cadrage affiche l'Europe
+    de l'Islande jusqu'à la Turquie,
+    sans montrer inutilement le reste
+    du monde.
   */
 
-  const framingCodes =
-    allowedCodes.filter(
-      code => code !== "RU"
-    );
-
-  let minX = Infinity;
-  let minY = Infinity;
-  let maxX = -Infinity;
-  let maxY = -Infinity;
-
-  framingCodes.forEach(code => {
-    const country =
-      svg.querySelector(
-        `g[id="${code}"]`
-      );
-
-    if (!country) return;
-
-    try {
-      const box =
-        country.getBBox();
-
-      if (
-        !box ||
-        box.width === 0 ||
-        box.height === 0
-      ) {
-        return;
-      }
-
-      minX = Math.min(
-        minX,
-        box.x
-      );
-
-      minY = Math.min(
-        minY,
-        box.y
-      );
-
-      maxX = Math.max(
-        maxX,
-        box.x + box.width
-      );
-
-      maxY = Math.max(
-        maxY,
-        box.y + box.height
-      );
-
-    } catch (error) {
-      console.warn(
-        "Impossible de calculer",
-        code
-      );
-    }
-  });
-
-  if (
-    !Number.isFinite(minX) ||
-    !Number.isFinite(minY) ||
-    !Number.isFinite(maxX) ||
-    !Number.isFinite(maxY)
-  ) {
-    return;
-  }
-
-  const width =
-    maxX - minX;
-
-  const height =
-    maxY - minY;
-
-  const paddingX =
-    width * 0.08;
-
-  const paddingY =
-    height * 0.10;
-
   const viewBox = {
-    x: minX - paddingX,
-    y: minY - paddingY,
-    width:
-      width + paddingX * 2,
-    height:
-      height + paddingY * 2
+    x: 430,
+    y: 55,
+    width: 235,
+    height: 205
   };
 
   mapOriginalViewBox = {
@@ -1008,7 +930,7 @@ function fitMapToEurope(
 }
 
 /* ======================================================
-   ZONES DE CLIC POUR PETITS PAYS
+   ZONES DE CLIC PETITS PAYS
 ====================================================== */
 
 function createMapHitAreas(
@@ -1040,7 +962,9 @@ function createMapHitAreas(
   ];
 
   smallCodes.forEach(code => {
-    if (!allowedCodes.includes(code)) {
+    if (
+      !allowedCodes.includes(code)
+    ) {
       return;
     }
 
@@ -1111,7 +1035,500 @@ function createMapHitAreas(
 }
 
 /* ======================================================
-   CLICS SUR LA CARTE
+   NAVIGATION CARTE
+====================================================== */
+
+function setupMapNavigation(svg) {
+  setupMapZoom(svg);
+  setupMapPan(svg);
+  setupMouseWheelZoom(svg);
+}
+
+/* ======================================================
+   ZOOM BOUTONS
+====================================================== */
+
+function setupMapZoom(svg) {
+  const zoomIn =
+    document.getElementById(
+      "map-zoom-in"
+    );
+
+  const zoomOut =
+    document.getElementById(
+      "map-zoom-out"
+    );
+
+  const reset =
+    document.getElementById(
+      "map-reset"
+    );
+
+  if (zoomIn) {
+    zoomIn.addEventListener(
+      "click",
+      () => {
+        zoomMap(
+          svg,
+          0.80
+        );
+      }
+    );
+  }
+
+  if (zoomOut) {
+    zoomOut.addEventListener(
+      "click",
+      () => {
+        zoomMap(
+          svg,
+          1.25
+        );
+      }
+    );
+  }
+
+  if (reset) {
+    reset.addEventListener(
+      "click",
+      () => {
+        if (
+          !mapOriginalViewBox
+        ) {
+          return;
+        }
+
+        mapCurrentViewBox = {
+          ...mapOriginalViewBox
+        };
+
+        applyMapViewBox(svg);
+      }
+    );
+  }
+}
+
+/* ======================================================
+   ZOOM
+====================================================== */
+
+function zoomMap(
+  svg,
+  factor
+) {
+  if (!mapCurrentViewBox) {
+    return;
+  }
+
+  const centerX =
+    mapCurrentViewBox.x +
+    mapCurrentViewBox.width / 2;
+
+  const centerY =
+    mapCurrentViewBox.y +
+    mapCurrentViewBox.height / 2;
+
+  const newWidth =
+    mapCurrentViewBox.width *
+    factor;
+
+  const newHeight =
+    mapCurrentViewBox.height *
+    factor;
+
+  const minWidth =
+    mapOriginalViewBox.width *
+    0.28;
+
+  const maxWidth =
+    mapOriginalViewBox.width *
+    1.30;
+
+  if (
+    newWidth < minWidth ||
+    newWidth > maxWidth
+  ) {
+    return;
+  }
+
+  mapCurrentViewBox = {
+    x:
+      centerX -
+      newWidth / 2,
+
+    y:
+      centerY -
+      newHeight / 2,
+
+    width:
+      newWidth,
+
+    height:
+      newHeight
+  };
+
+  clampMapViewBox();
+
+  applyMapViewBox(svg);
+}
+
+/* ======================================================
+   DÉPLACEMENT SOURIS / DOIGT
+====================================================== */
+
+function setupMapPan(svg) {
+  let dragging = false;
+
+  let startX = 0;
+  let startY = 0;
+
+  let startViewBox = null;
+
+  let moved = false;
+
+  svg.addEventListener(
+    "pointerdown",
+    event => {
+
+      if (!mapCurrentViewBox) {
+        return;
+      }
+
+      dragging = true;
+      moved = false;
+
+      startX =
+        event.clientX;
+
+      startY =
+        event.clientY;
+
+      startViewBox = {
+        ...mapCurrentViewBox
+      };
+
+      svg.classList.add(
+        "map-dragging"
+      );
+
+      try {
+        svg.setPointerCapture(
+          event.pointerId
+        );
+      } catch (error) {}
+
+    }
+  );
+
+  svg.addEventListener(
+    "pointermove",
+    event => {
+
+      if (
+        !dragging ||
+        !startViewBox
+      ) {
+        return;
+      }
+
+      const rect =
+        svg.getBoundingClientRect();
+
+      if (
+        rect.width === 0 ||
+        rect.height === 0
+      ) {
+        return;
+      }
+
+      const deltaPixelsX =
+        event.clientX -
+        startX;
+
+      const deltaPixelsY =
+        event.clientY -
+        startY;
+
+      if (
+        Math.abs(deltaPixelsX) > 4 ||
+        Math.abs(deltaPixelsY) > 4
+      ) {
+        moved = true;
+      }
+
+      const deltaMapX =
+        deltaPixelsX *
+        (
+          startViewBox.width /
+          rect.width
+        );
+
+      const deltaMapY =
+        deltaPixelsY *
+        (
+          startViewBox.height /
+          rect.height
+        );
+
+      mapCurrentViewBox = {
+        x:
+          startViewBox.x -
+          deltaMapX,
+
+        y:
+          startViewBox.y -
+          deltaMapY,
+
+        width:
+          startViewBox.width,
+
+        height:
+          startViewBox.height
+      };
+
+      clampMapViewBox();
+
+      applyMapViewBox(svg);
+    }
+  );
+
+  const finishDrag =
+    event => {
+
+      if (!dragging) {
+        return;
+      }
+
+      dragging = false;
+
+      svg.classList.remove(
+        "map-dragging"
+      );
+
+      if (moved) {
+        svg.dataset.ignoreMapClick =
+          "true";
+
+        setTimeout(() => {
+          svg.dataset.ignoreMapClick =
+            "false";
+        }, 50);
+      }
+
+      try {
+        svg.releasePointerCapture(
+          event.pointerId
+        );
+      } catch (error) {}
+    };
+
+  svg.addEventListener(
+    "pointerup",
+    finishDrag
+  );
+
+  svg.addEventListener(
+    "pointercancel",
+    finishDrag
+  );
+}
+
+/* ======================================================
+   ZOOM MOLETTE
+====================================================== */
+
+function setupMouseWheelZoom(svg) {
+  svg.addEventListener(
+    "wheel",
+    event => {
+
+      event.preventDefault();
+
+      const factor =
+        event.deltaY < 0
+          ? 0.88
+          : 1.12;
+
+      zoomMapAtPointer(
+        svg,
+        factor,
+        event.clientX,
+        event.clientY
+      );
+
+    },
+    {
+      passive: false
+    }
+  );
+}
+
+function zoomMapAtPointer(
+  svg,
+  factor,
+  clientX,
+  clientY
+) {
+  if (!mapCurrentViewBox) {
+    return;
+  }
+
+  const rect =
+    svg.getBoundingClientRect();
+
+  if (
+    rect.width === 0 ||
+    rect.height === 0
+  ) {
+    return;
+  }
+
+  const mouseRatioX =
+    (
+      clientX -
+      rect.left
+    ) /
+    rect.width;
+
+  const mouseRatioY =
+    (
+      clientY -
+      rect.top
+    ) /
+    rect.height;
+
+  const mapX =
+    mapCurrentViewBox.x +
+    mouseRatioX *
+    mapCurrentViewBox.width;
+
+  const mapY =
+    mapCurrentViewBox.y +
+    mouseRatioY *
+    mapCurrentViewBox.height;
+
+  const newWidth =
+    mapCurrentViewBox.width *
+    factor;
+
+  const newHeight =
+    mapCurrentViewBox.height *
+    factor;
+
+  const minWidth =
+    mapOriginalViewBox.width *
+    0.28;
+
+  const maxWidth =
+    mapOriginalViewBox.width *
+    1.30;
+
+  if (
+    newWidth < minWidth ||
+    newWidth > maxWidth
+  ) {
+    return;
+  }
+
+  mapCurrentViewBox = {
+    x:
+      mapX -
+      mouseRatioX *
+      newWidth,
+
+    y:
+      mapY -
+      mouseRatioY *
+      newHeight,
+
+    width:
+      newWidth,
+
+    height:
+      newHeight
+  };
+
+  clampMapViewBox();
+
+  applyMapViewBox(svg);
+}
+
+/* ======================================================
+   LIMITES DE DÉPLACEMENT
+====================================================== */
+
+function clampMapViewBox() {
+  if (!mapCurrentViewBox) {
+    return;
+  }
+
+  /*
+    Limites plus larges que l'Europe
+    pour permettre d'aller chercher :
+    Russie, Turquie, Géorgie,
+    Islande, etc.
+  */
+
+  const minX = 360;
+  const maxX = 760;
+
+  const minY = 20;
+  const maxY = 315;
+
+  if (
+    mapCurrentViewBox.x <
+    minX
+  ) {
+    mapCurrentViewBox.x =
+      minX;
+  }
+
+  if (
+    mapCurrentViewBox.y <
+    minY
+  ) {
+    mapCurrentViewBox.y =
+      minY;
+  }
+
+  if (
+    mapCurrentViewBox.x +
+      mapCurrentViewBox.width >
+    maxX
+  ) {
+    mapCurrentViewBox.x =
+      maxX -
+      mapCurrentViewBox.width;
+  }
+
+  if (
+    mapCurrentViewBox.y +
+      mapCurrentViewBox.height >
+    maxY
+  ) {
+    mapCurrentViewBox.y =
+      maxY -
+      mapCurrentViewBox.height;
+  }
+}
+
+/* ======================================================
+   APPLICATION DU VIEWBOX
+====================================================== */
+
+function applyMapViewBox(svg) {
+  if (!mapCurrentViewBox) {
+    return;
+  }
+
+  svg.setAttribute(
+    "viewBox",
+    `${mapCurrentViewBox.x} ${mapCurrentViewBox.y} ${mapCurrentViewBox.width} ${mapCurrentViewBox.height}`
+  );
+}
+
+/* ======================================================
+   CLIC SUR PAYS
 ====================================================== */
 
 function setupMapClicks(
@@ -1122,7 +1539,9 @@ function setupMapClicks(
   let answered = false;
 
   const normalizedCorrect =
-    String(correctCode).toUpperCase();
+    String(
+      correctCode
+    ).toUpperCase();
 
   const clickable =
     svg.querySelectorAll(
@@ -1130,12 +1549,23 @@ function setupMapClicks(
     );
 
   clickable.forEach(element => {
+
     element.addEventListener(
       "click",
       event => {
+
         event.stopPropagation();
 
-        if (answered) return;
+        if (
+          svg.dataset.ignoreMapClick ===
+          "true"
+        ) {
+          return;
+        }
+
+        if (answered) {
+          return;
+        }
 
         const selectedCode =
           element.dataset.countryCode ||
@@ -1143,7 +1573,9 @@ function setupMapClicks(
             element
           );
 
-        if (!selectedCode) return;
+        if (!selectedCode) {
+          return;
+        }
 
         answered = true;
 
@@ -1179,25 +1611,31 @@ function setupMapClicks(
 function findCountryCodeFromElement(
   element
 ) {
-  let current = element;
+  let current =
+    element;
 
   while (current) {
+
     if (
       current.tagName &&
-      current.tagName.toLowerCase() === "g" &&
+      current.tagName
+        .toLowerCase() ===
+      "g" &&
       current.id
     ) {
-      return current.id.toUpperCase();
+      return current.id
+        .toUpperCase();
     }
 
-    current = current.parentElement;
+    current =
+      current.parentElement;
   }
 
   return null;
 }
 
 /* ======================================================
-   COULEURS RÉPONSES CARTE
+   COULEURS RÉPONSES
 ====================================================== */
 
 function highlightMapCountry(
@@ -1210,15 +1648,21 @@ function highlightMapCountry(
       `g[id="${code}"]`
     );
 
-  if (!group) return;
+  if (!group) {
+    return;
+  }
 
-  if (type === "correct") {
+  if (
+    type === "correct"
+  ) {
     group.classList.add(
       "map-country-correct"
     );
   }
 
-  if (type === "wrong") {
+  if (
+    type === "wrong"
+  ) {
     group.classList.add(
       "map-country-wrong"
     );
@@ -1226,7 +1670,7 @@ function highlightMapCountry(
 }
 
 /* ======================================================
-   FEEDBACK CARTE
+   FEEDBACK
 ====================================================== */
 
 function showMapAnswerFeedback(
@@ -1238,7 +1682,9 @@ function showMapAnswerFeedback(
       "map-feedback"
     );
 
-  if (!feedback) return;
+  if (!feedback) {
+    return;
+  }
 
   feedback.classList.remove(
     "hidden"
@@ -1258,11 +1704,17 @@ function showMapAnswerFeedback(
     `;
   }
 
-  if (mode === "test" && isCorrect) {
+  if (
+    mode === "test" &&
+    isCorrect
+  ) {
     testScore++;
   }
 
-  if (mode === "review" && !isCorrect) {
+  if (
+    mode === "review" &&
+    !isCorrect
+  ) {
     const missed =
       reviewQuestions[
         currentQuestionIndex
@@ -1274,12 +1726,17 @@ function showMapAnswerFeedback(
   }
 
   const nextButton =
-    document.createElement("button");
+    document.createElement(
+      "button"
+    );
 
   nextButton.className =
     "qcm-next-button";
 
-  if (mode === "review") {
+  if (
+    mode === "review"
+  ) {
+
     nextButton.textContent =
       "Pays suivant →";
 
@@ -1290,7 +1747,9 @@ function showMapAnswerFeedback(
         showMapReviewQuestion();
       }
     );
+
   } else {
+
     nextButton.textContent =
       currentTestIndex + 1 ===
       testQuestions.length
@@ -1310,136 +1769,6 @@ function showMapAnswerFeedback(
     nextButton
   );
 }
-
-/* ======================================================
-   ZOOM CARTE
-====================================================== */
-
-function setupMapZoom(svg) {
-  const zoomIn =
-    document.getElementById(
-      "map-zoom-in"
-    );
-
-  const zoomOut =
-    document.getElementById(
-      "map-zoom-out"
-    );
-
-  const reset =
-    document.getElementById(
-      "map-reset"
-    );
-
-  if (zoomIn) {
-    zoomIn.addEventListener(
-      "click",
-      () => {
-        zoomMap(svg, 0.80);
-      }
-    );
-  }
-
-  if (zoomOut) {
-    zoomOut.addEventListener(
-      "click",
-      () => {
-        zoomMap(svg, 1.25);
-      }
-    );
-  }
-
-  if (reset) {
-    reset.addEventListener(
-      "click",
-      () => {
-        if (!mapOriginalViewBox) {
-          return;
-        }
-
-        mapCurrentViewBox = {
-          ...mapOriginalViewBox
-        };
-
-        applyMapViewBox(svg);
-      }
-    );
-  }
-}
-
-function zoomMap(
-  svg,
-  factor
-) {
-  if (!mapCurrentViewBox) return;
-
-  const centerX =
-    mapCurrentViewBox.x +
-    mapCurrentViewBox.width / 2;
-
-  const centerY =
-    mapCurrentViewBox.y +
-    mapCurrentViewBox.height / 2;
-
-  const newWidth =
-    mapCurrentViewBox.width *
-    factor;
-
-  const newHeight =
-    mapCurrentViewBox.height *
-    factor;
-
-  const minWidth =
-    mapOriginalViewBox.width *
-    0.30;
-
-  const maxWidth =
-    mapOriginalViewBox.width *
-    1.20;
-
-  if (
-    newWidth < minWidth ||
-    newWidth > maxWidth
-  ) {
-    return;
-  }
-
-  mapCurrentViewBox = {
-    x:
-      centerX -
-      newWidth / 2,
-
-    y:
-      centerY -
-      newHeight / 2,
-
-    width:
-      newWidth,
-
-    height:
-      newHeight
-  };
-
-  applyMapViewBox(svg);
-}
-
-function applyMapViewBox(svg) {
-  if (!mapCurrentViewBox) return;
-
-  svg.setAttribute(
-    "viewBox",
-    `
-      ${mapCurrentViewBox.x}
-      ${mapCurrentViewBox.y}
-      ${mapCurrentViewBox.width}
-      ${mapCurrentViewBox.height}
-    `
-  );
-}
-
-/* ======================================================
-   FIN RÉVISION
-====================================================== */
 
 function showReviewFinished() {
   title.textContent = "Bravo !";
