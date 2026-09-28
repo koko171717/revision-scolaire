@@ -1177,6 +1177,7 @@ function zoomMap(
 ====================================================== */
 
 function setupMapPan(svg) {
+  let pointerDown = false;
   let dragging = false;
 
   let startX = 0;
@@ -1184,18 +1185,20 @@ function setupMapPan(svg) {
 
   let startViewBox = null;
 
-  let moved = false;
+  let activePointerId = null;
 
   svg.addEventListener(
     "pointerdown",
     event => {
-
       if (!mapCurrentViewBox) {
         return;
       }
 
-      dragging = true;
-      moved = false;
+      pointerDown = true;
+      dragging = false;
+
+      activePointerId =
+        event.pointerId;
 
       startX =
         event.clientX;
@@ -1206,30 +1209,64 @@ function setupMapPan(svg) {
       startViewBox = {
         ...mapCurrentViewBox
       };
-
-      svg.classList.add(
-        "map-dragging"
-      );
-
-      try {
-        svg.setPointerCapture(
-          event.pointerId
-        );
-      } catch (error) {}
-
     }
   );
 
   svg.addEventListener(
     "pointermove",
     event => {
-
       if (
-        !dragging ||
+        !pointerDown ||
+        event.pointerId !== activePointerId ||
         !startViewBox
       ) {
         return;
       }
+
+      const deltaPixelsX =
+        event.clientX - startX;
+
+      const deltaPixelsY =
+        event.clientY - startY;
+
+      /*
+        On ne considère pas immédiatement
+        le mouvement comme un déplacement.
+
+        Cela permet à un simple clic
+        sur un pays de fonctionner normalement.
+      */
+
+      if (
+        !dragging &&
+        (
+          Math.abs(deltaPixelsX) > 6 ||
+          Math.abs(deltaPixelsY) > 6
+        )
+      ) {
+        dragging = true;
+
+        svg.classList.add(
+          "map-dragging"
+        );
+
+        /*
+          On capture le pointeur uniquement
+          APRÈS avoir détecté un vrai déplacement.
+        */
+
+        try {
+          svg.setPointerCapture(
+            event.pointerId
+          );
+        } catch (error) {}
+      }
+
+      if (!dragging) {
+        return;
+      }
+
+      event.preventDefault();
 
       const rect =
         svg.getBoundingClientRect();
@@ -1239,21 +1276,6 @@ function setupMapPan(svg) {
         rect.height === 0
       ) {
         return;
-      }
-
-      const deltaPixelsX =
-        event.clientX -
-        startX;
-
-      const deltaPixelsY =
-        event.clientY -
-        startY;
-
-      if (
-        Math.abs(deltaPixelsX) > 4 ||
-        Math.abs(deltaPixelsY) > 4
-      ) {
-        moved = true;
       }
 
       const deltaMapX =
@@ -1292,44 +1314,61 @@ function setupMapPan(svg) {
     }
   );
 
-  const finishDrag =
+  const finishPointer =
     event => {
-
-      if (!dragging) {
+      if (
+        event.pointerId !==
+        activePointerId
+      ) {
         return;
       }
 
-      dragging = false;
+      if (dragging) {
+        /*
+          Empêche seulement le clic généré
+          juste après un vrai déplacement.
+        */
 
-      svg.classList.remove(
-        "map-dragging"
-      );
-
-      if (moved) {
         svg.dataset.ignoreMapClick =
           "true";
 
         setTimeout(() => {
           svg.dataset.ignoreMapClick =
             "false";
-        }, 50);
+        }, 100);
       }
 
       try {
-        svg.releasePointerCapture(
-          event.pointerId
-        );
+        if (
+          svg.hasPointerCapture &&
+          svg.hasPointerCapture(
+            event.pointerId
+          )
+        ) {
+          svg.releasePointerCapture(
+            event.pointerId
+          );
+        }
       } catch (error) {}
+
+      pointerDown = false;
+      dragging = false;
+      activePointerId = null;
+      startViewBox = null;
+
+      svg.classList.remove(
+        "map-dragging"
+      );
     };
 
   svg.addEventListener(
     "pointerup",
-    finishDrag
+    finishPointer
   );
 
   svg.addEventListener(
     "pointercancel",
-    finishDrag
+    finishPointer
   );
 }
 
