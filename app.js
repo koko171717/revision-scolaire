@@ -104,8 +104,14 @@ async function loadChapters(subject) {
     const card = document.createElement("div");
     card.className = "subject-card";
 
+    let icon = "📘";
+
+    if (chapter.content_type === "flags") {
+      icon = "🏳️";
+    }
+
     card.innerHTML = `
-      <div class="subject-icon">📘</div>
+      <div class="subject-icon">${icon}</div>
       <div class="subject-name">${chapter.name}</div>
     `;
 
@@ -134,17 +140,29 @@ function showModes(chapter) {
   const revisionCard = document.createElement("div");
   revisionCard.className = "subject-card";
 
-  revisionCard.innerHTML = `
-    <div class="subject-icon">📚</div>
-    <div class="subject-name">Révision</div>
-    <div class="mode-description">
-      Apprends à ton rythme et affiche la réponse.
-    </div>
-  `;
+  if (chapter.content_type === "flags") {
+    revisionCard.innerHTML = `
+      <div class="subject-icon">🏳️</div>
+      <div class="subject-name">Révision</div>
+      <div class="mode-description">
+        Drapeau → Pays
+      </div>
+    `;
+  } else {
+    revisionCard.innerHTML = `
+      <div class="subject-icon">📚</div>
+      <div class="subject-name">Révision</div>
+      <div class="mode-description">
+        Apprends à ton rythme et affiche la réponse.
+      </div>
+    `;
+  }
 
   revisionCard.addEventListener("click", () => {
-    if (currentChapter.direction_mode === "single") {
-      startReview(currentChapter, "forward");
+    if (chapter.content_type === "flags") {
+      startFlagReview(chapter);
+    } else if (chapter.direction_mode === "single") {
+      startReview(chapter, "forward");
     } else {
       showReviewDirection();
     }
@@ -154,7 +172,7 @@ function showModes(chapter) {
 
   const testCard = document.createElement("div");
 
-  if (currentChapter.test_mode === "disabled") {
+  if (chapter.test_mode === "disabled") {
     testCard.className = "subject-card disabled-card";
 
     testCard.innerHTML = `
@@ -167,23 +185,35 @@ function showModes(chapter) {
   } else {
     testCard.className = "subject-card";
 
-    let description = "Écris ta réponse et obtiens ton score.";
+    if (chapter.content_type === "flags") {
+      testCard.innerHTML = `
+        <div class="subject-icon">🎯</div>
+        <div class="subject-name">Test QCM</div>
+        <div class="mode-description">
+          Pays → Drapeau
+        </div>
+      `;
+    } else {
+      let description = "Écris ta réponse et obtiens ton score.";
 
-    if (currentChapter.test_mode === "qcm") {
-      description = "Choisis la bonne réponse parmi 4 propositions.";
+      if (chapter.test_mode === "qcm") {
+        description = "Choisis la bonne réponse parmi 4 propositions.";
+      }
+
+      testCard.innerHTML = `
+        <div class="subject-icon">🎯</div>
+        <div class="subject-name">Test</div>
+        <div class="mode-description">
+          ${description}
+        </div>
+      `;
     }
 
-    testCard.innerHTML = `
-      <div class="subject-icon">🎯</div>
-      <div class="subject-name">Test</div>
-      <div class="mode-description">
-        ${description}
-      </div>
-    `;
-
     testCard.addEventListener("click", () => {
-      if (currentChapter.direction_mode === "single") {
-        startTest(currentChapter, "forward");
+      if (chapter.content_type === "flags") {
+        startFlagTest(chapter);
+      } else if (chapter.direction_mode === "single") {
+        startTest(chapter, "forward");
       } else {
         showTestDirection();
       }
@@ -277,7 +307,7 @@ function addDirectionCards(callback) {
 }
 
 /* =========================
-   MODE RÉVISION
+   RÉVISION TEXTE
 ========================= */
 
 async function startReview(chapter, direction) {
@@ -308,6 +338,7 @@ function showReviewQuestion() {
   const current = reviewQuestions[currentQuestionIndex];
 
   title.textContent = currentChapter.name;
+
   subtitle.textContent =
     `Question ${currentQuestionIndex + 1} sur ${reviewQuestions.length}`;
 
@@ -332,7 +363,6 @@ function showReviewQuestion() {
       </div>
 
       <div class="review-actions">
-
         <button id="wrong-button" class="review-button">
           ❌ À revoir
         </button>
@@ -340,7 +370,6 @@ function showReviewQuestion() {
         <button id="correct-button" class="review-button">
           ✅ Je savais
         </button>
-
       </div>
 
     </div>
@@ -375,6 +404,122 @@ function showReviewQuestion() {
     .addEventListener("click", answerCorrect);
 }
 
+/* =========================
+   RÉVISION DRAPEAUX
+========================= */
+
+async function startFlagReview(chapter) {
+  title.textContent = chapter.name;
+  subtitle.textContent = "Drapeau → Pays";
+
+  container.innerHTML = "<p>Chargement des drapeaux...</p>";
+
+  const data = await loadCards(chapter);
+
+  if (!data) return;
+
+  reviewQuestions = data.map(card => ({
+    question: card.question,
+    answer: card.answer,
+    image_url: card.image_url
+  }));
+
+  shuffleArray(reviewQuestions);
+
+  currentQuestionIndex = 0;
+
+  showFlagReviewQuestion();
+}
+
+function showFlagReviewQuestion() {
+  if (currentQuestionIndex >= reviewQuestions.length) {
+    showReviewFinished();
+    return;
+  }
+
+  const current = reviewQuestions[currentQuestionIndex];
+
+  title.textContent = currentChapter.name;
+
+  subtitle.textContent =
+    `Question ${currentQuestionIndex + 1} sur ${reviewQuestions.length}`;
+
+  container.innerHTML = "";
+
+  const box = document.createElement("div");
+  box.className = "review-box";
+
+  box.innerHTML = `
+    <div class="flag-review-question">
+      Quel pays correspond à ce drapeau ?
+    </div>
+
+    <div class="flag-display">
+      <img
+        src="${current.image_url}"
+        alt="Drapeau à identifier"
+        class="flag-main-image"
+      />
+    </div>
+
+    <button id="show-answer" class="main-button">
+      Voir la réponse
+    </button>
+
+    <div id="answer-area" class="answer-area hidden">
+
+      <div class="review-answer">
+        ${current.answer}
+      </div>
+
+      <div class="review-actions">
+
+        <button id="wrong-button" class="review-button">
+          ❌ À revoir
+        </button>
+
+        <button id="correct-button" class="review-button">
+          ✅ Je savais
+        </button>
+
+      </div>
+
+    </div>
+
+    <button id="quit-review" class="secondary-button review-back-button">
+      ← Retour
+    </button>
+  `;
+
+  container.appendChild(box);
+
+  document
+    .getElementById("show-answer")
+    .addEventListener("click", showAnswer);
+
+  document
+    .getElementById("wrong-button")
+    .addEventListener("click", () => {
+      const missed = reviewQuestions[currentQuestionIndex];
+      reviewQuestions.push(missed);
+      currentQuestionIndex++;
+      showFlagReviewQuestion();
+    });
+
+  document
+    .getElementById("correct-button")
+    .addEventListener("click", () => {
+      currentQuestionIndex++;
+      showFlagReviewQuestion();
+    });
+
+  document
+    .getElementById("quit-review")
+    .addEventListener("click", () => {
+      showModes(currentChapter);
+    });
+}
+
 function showAnswer() {
   document
     .getElementById("answer-area")
@@ -391,10 +536,10 @@ function answerCorrect() {
 }
 
 function answerWrong() {
-  const missedQuestion =
+  const missed =
     reviewQuestions[currentQuestionIndex];
 
-  reviewQuestions.push(missedQuestion);
+  reviewQuestions.push(missed);
 
   currentQuestionIndex++;
 
@@ -433,7 +578,9 @@ function showReviewFinished() {
   document
     .getElementById("restart-review")
     .addEventListener("click", () => {
-      if (currentChapter.direction_mode === "single") {
+      if (currentChapter.content_type === "flags") {
+        startFlagReview(currentChapter);
+      } else if (currentChapter.direction_mode === "single") {
         startReview(currentChapter, "forward");
       } else {
         showReviewDirection();
@@ -448,7 +595,7 @@ function showReviewFinished() {
 }
 
 /* =========================
-   DÉMARRAGE TEST
+   DÉMARRAGE TEST TEXTE
 ========================= */
 
 async function startTest(chapter, direction) {
@@ -479,6 +626,201 @@ async function startTest(chapter, direction) {
   } else {
     showWrittenTestQuestion();
   }
+}
+
+/* =========================
+   TEST DRAPEAUX
+========================= */
+
+async function startFlagTest(chapter) {
+  title.textContent = chapter.name;
+  subtitle.textContent = "Pays → Drapeau";
+
+  container.innerHTML = "<p>Chargement du test...</p>";
+
+  const data = await loadCards(chapter);
+
+  if (!data) return;
+
+  const allFlags = data.filter(card => card.image_url);
+
+  testQuestions = [...allFlags];
+
+  shuffleArray(testQuestions);
+
+  testQuestions = testQuestions.slice(0, 20);
+
+  currentTestIndex = 0;
+  testScore = 0;
+
+  showFlagTestQuestion(allFlags);
+}
+
+function showFlagTestQuestion(allFlags) {
+  if (currentTestIndex >= testQuestions.length) {
+    showTestFinished();
+    return;
+  }
+
+  const current = testQuestions[currentTestIndex];
+
+  title.textContent = currentChapter.name;
+  subtitle.textContent = "Pays → Drapeau";
+
+  container.innerHTML = "";
+
+  const box = document.createElement("div");
+  box.className = "qcm-card";
+
+  const distractors = allFlags
+    .filter(card => card.id !== current.id);
+
+  shuffleArray(distractors);
+
+  const choices = [
+    current,
+    ...distractors.slice(0, 3)
+  ];
+
+  shuffleArray(choices);
+
+  const progress =
+    ((currentTestIndex + 1) / testQuestions.length) * 100;
+
+  let choicesHtml = "";
+
+  choices.forEach(choice => {
+    choicesHtml += `
+      <button
+        class="flag-choice-button"
+        data-id="${choice.id}"
+      >
+        <img
+          src="${choice.image_url}"
+          alt="Drapeau"
+          class="flag-choice-image"
+        />
+      </button>
+    `;
+  });
+
+  box.innerHTML = `
+    <div class="qcm-topbar">
+
+      <div class="qcm-counter">
+        Question ${currentTestIndex + 1}
+        <span>sur ${testQuestions.length}</span>
+      </div>
+
+      <div class="qcm-score">
+        ⭐ ${testScore}
+      </div>
+
+    </div>
+
+    <div class="qcm-progress">
+      <div
+        class="qcm-progress-bar"
+        style="width: ${progress}%"
+      ></div>
+    </div>
+
+    <div class="flag-test-title">
+      Quel est le drapeau de :
+    </div>
+
+    <div class="flag-country-name">
+      ${current.answer}
+    </div>
+
+    <div class="flag-qcm-grid">
+      ${choicesHtml}
+    </div>
+
+    <div
+      id="qcm-feedback"
+      class="qcm-feedback hidden"
+    ></div>
+
+    <button
+      id="quit-test"
+      class="qcm-back-button"
+    >
+      ← Quitter le test
+    </button>
+  `;
+
+  container.appendChild(box);
+
+  document
+    .querySelectorAll(".flag-choice-button")
+    .forEach(button => {
+      button.addEventListener("click", () => {
+        validateFlagAnswer(button, current, allFlags);
+      });
+    });
+
+  document
+    .getElementById("quit-test")
+    .addEventListener("click", () => {
+      showModes(currentChapter);
+    });
+}
+
+function validateFlagAnswer(button, current, allFlags) {
+  const selectedId = String(button.dataset.id);
+  const correctId = String(current.id);
+
+  const buttons =
+    document.querySelectorAll(".flag-choice-button");
+
+  buttons.forEach(btn => {
+    btn.disabled = true;
+
+    if (String(btn.dataset.id) === correctId) {
+      btn.classList.add("flag-choice-correct");
+    }
+  });
+
+  const feedback =
+    document.getElementById("qcm-feedback");
+
+  if (selectedId === correctId) {
+    testScore++;
+
+    feedback.innerHTML = `
+      <div class="qcm-feedback-title correct">
+        ✓ Bonne réponse
+      </div>
+    `;
+  } else {
+    button.classList.add("flag-choice-wrong");
+
+    feedback.innerHTML = `
+      <div class="qcm-feedback-title wrong">
+        ✕ Mauvaise réponse
+      </div>
+    `;
+  }
+
+  feedback.classList.remove("hidden");
+
+  const nextButton =
+    document.createElement("button");
+
+  nextButton.className = "qcm-next-button";
+
+  nextButton.textContent =
+    currentTestIndex + 1 === testQuestions.length
+      ? "Voir mon résultat"
+      : "Question suivante →";
+
+  nextButton.addEventListener("click", () => {
+    currentTestIndex++;
+    showFlagTestQuestion(allFlags);
+  });
+
+  feedback.appendChild(nextButton);
 }
 
 /* =========================
@@ -530,7 +872,6 @@ function showWrittenTestQuestion() {
   container.appendChild(box);
 
   const input = document.getElementById("test-answer");
-
   input.focus();
 
   document
@@ -602,7 +943,7 @@ function validateWrittenTestAnswer() {
 }
 
 /* =========================
-   QCM
+   QCM TEXTE
 ========================= */
 
 function buildQcmQuestions(data) {
@@ -639,7 +980,6 @@ function showQcmQuestion() {
   const current = testQuestions[currentTestIndex];
 
   title.textContent = currentChapter.name;
-
   subtitle.textContent = "Mode Test";
 
   container.innerHTML = "";
@@ -675,7 +1015,6 @@ function showQcmQuestion() {
     ((currentTestIndex + 1) / testQuestions.length) * 100;
 
   box.innerHTML = `
-
     <div class="qcm-topbar">
 
       <div class="qcm-counter">
@@ -684,7 +1023,7 @@ function showQcmQuestion() {
       </div>
 
       <div class="qcm-score">
-        ⭐ ${testScore} point${testScore > 1 ? "s" : ""}
+        ⭐ ${testScore}
       </div>
 
     </div>
@@ -715,19 +1054,17 @@ function showQcmQuestion() {
     >
       ← Quitter le test
     </button>
-
   `;
 
   container.appendChild(box);
 
-  const buttons =
-    document.querySelectorAll(".qcm-button");
-
-  buttons.forEach(button => {
-    button.addEventListener("click", () => {
-      validateQcmAnswer(button);
+  document
+    .querySelectorAll(".qcm-button")
+    .forEach(button => {
+      button.addEventListener("click", () => {
+        validateQcmAnswer(button);
+      });
     });
-  });
 
   document
     .getElementById("quit-test")
@@ -751,11 +1088,8 @@ function validateQcmAnswer(selectedButton) {
   buttons.forEach(button => {
     button.disabled = true;
 
-    const buttonAnswer =
-      button.dataset.answer;
-
     if (
-      normalizeAnswer(buttonAnswer) ===
+      normalizeAnswer(button.dataset.answer) ===
       normalizeAnswer(current.answer)
     ) {
       button.classList.add("qcm-correct");
@@ -794,8 +1128,7 @@ function validateQcmAnswer(selectedButton) {
   const nextButton =
     document.createElement("button");
 
-  nextButton.className =
-    "qcm-next-button";
+  nextButton.className = "qcm-next-button";
 
   nextButton.textContent =
     currentTestIndex + 1 === testQuestions.length
@@ -805,6 +1138,28 @@ function validateQcmAnswer(selectedButton) {
   nextButton.addEventListener("click", () => {
     currentTestIndex++;
     showQcmQuestion();
+  });
+
+  feedback.appendChild(nextButton);
+}
+
+/* =========================
+   OUTIL QUESTION SUIVANTE
+========================= */
+
+function addNextTestButton(feedback, nextFunction) {
+  const nextButton =
+    document.createElement("button");
+
+  nextButton.className =
+    "main-button test-next-button";
+
+  nextButton.textContent =
+    "Question suivante";
+
+  nextButton.addEventListener("click", () => {
+    currentTestIndex++;
+    nextFunction();
   });
 
   feedback.appendChild(nextButton);
@@ -830,16 +1185,6 @@ function showTestFinished() {
   const box = document.createElement("div");
   box.className = "review-box";
 
-  let message = "Continue à t'entraîner 👍";
-
-  if (percent >= 90) {
-    message = "Excellent travail ! 🌟";
-  } else if (percent >= 75) {
-    message = "Très bon résultat ! 👏";
-  } else if (percent >= 60) {
-    message = "Bien joué, encore un petit effort ! 💪";
-  }
-
   box.innerHTML = `
     <div class="finish-icon">🎯</div>
 
@@ -847,10 +1192,6 @@ function showTestFinished() {
 
     <div class="test-percent">
       ${percent} %
-    </div>
-
-    <div class="result-message">
-      ${message}
     </div>
 
     <button id="restart-test" class="main-button">
@@ -867,7 +1208,9 @@ function showTestFinished() {
   document
     .getElementById("restart-test")
     .addEventListener("click", () => {
-      if (currentChapter.direction_mode === "single") {
+      if (currentChapter.content_type === "flags") {
+        startFlagTest(currentChapter);
+      } else if (currentChapter.direction_mode === "single") {
         startTest(currentChapter, "forward");
       } else {
         showTestDirection();
