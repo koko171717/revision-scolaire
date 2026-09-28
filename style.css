@@ -857,3 +857,290 @@ header p {
     max-height: 95px;
   }
 }
+/* ======================================================
+   CARTE DE L'EUROPE
+====================================================== */
+
+.map-card {
+  grid-column: 1 / -1;
+
+  width: 100%;
+  max-width: 900px;
+
+  margin: 0 auto;
+
+  background: white;
+
+  border-radius: 30px;
+
+  padding: 30px;
+
+  box-shadow:
+    0 12px 40px rgba(0,0,0,0.08);
+}
+
+/* consigne */
+
+.map-instruction {
+  text-align: center;
+
+  color: #6b7280;
+
+  font-size: 18px;
+  font-weight: 600;
+
+  margin-top: 8px;
+  margin-bottom: 5px;
+}
+
+.map-country-name {
+  text-align: center;
+
+  font-size: 36px;
+  font-weight: 800;
+
+  color: #111827;
+
+  margin-bottom: 22px;
+}
+
+/* contrôles zoom */
+
+.map-controls {
+  display: flex;
+
+  align-items: center;
+  justify-content: center;
+
+  gap: 10px;
+
+  margin-bottom: 15px;
+}
+
+.map-control-button {
+  min-width: 48px;
+  height: 44px;
+
+  border: none;
+
+  border-radius: 12px;
+
+  background: #f3f4f6;
+
+  color: #111827;
+
+  font-size: 23px;
+  font-weight: 800;
+
+  cursor: pointer;
+
+  transition:
+    transform 0.15s ease,
+    background 0.15s ease;
+}
+
+.map-control-button:hover {
+  background: #e5e7eb;
+
+  transform: translateY(-1px);
+}
+
+.map-reset-button {
+  padding: 0 18px;
+
+  font-size: 14px;
+
+  font-weight: 700;
+}
+
+/* zone carte */
+
+.europe-map-container {
+  width: 100%;
+
+  position: relative;
+
+  overflow: hidden;
+
+  background: #eef5f8;
+
+  border-radius: 22px;
+
+  border:
+    2px solid #e5e7eb;
+
+  min-height: 450px;
+
+  display: flex;
+
+  align-items: center;
+  justify-content: center;
+}
+
+.interactive-europe-map {
+  display: block;
+
+  width: 100%;
+  height: auto;
+
+  max-height: 620px;
+
+  user-select: none;
+
+  -webkit-user-select: none;
+}
+
+/* pays du cours */
+
+.interactive-europe-map .map-country {
+  cursor: pointer;
+}
+
+/* pays qui ne font pas partie du cours */
+
+.interactive-europe-map .map-country-disabled {
+  pointer-events: none;
+
+  opacity: 0.55;
+}
+
+/* rendre les zones cliquables plus visibles au passage */
+
+.interactive-europe-map .map-country:hover path,
+.interactive-europe-map .map-country:hover polygon,
+.interactive-europe-map .map-country:hover rect {
+  filter: brightness(0.88);
+}
+
+/* bonne réponse */
+
+.interactive-europe-map
+.map-country-correct path,
+.interactive-europe-map
+.map-country-correct polygon,
+.interactive-europe-map
+.map-country-correct rect {
+  fill: #22c55e !important;
+  stroke: #15803d !important;
+  stroke-width: 1.2 !important;
+}
+
+/* mauvaise réponse */
+
+.interactive-europe-map
+.map-country-wrong path,
+.interactive-europe-map
+.map-country-wrong polygon,
+.interactive-europe-map
+.map-country-wrong rect {
+  fill: #ef4444 !important;
+  stroke: #b91c1c !important;
+  stroke-width: 1.2 !important;
+}
+
+/* zones de clic invisibles pour les petits pays */
+
+.map-small-hit {
+  fill: transparent;
+
+  stroke: none;
+
+  cursor: pointer;
+
+  pointer-events: all;
+}
+
+/* feedback */
+
+.map-feedback {
+  margin-top: 22px;
+
+  text-align: center;
+
+  padding-top: 20px;
+
+  border-top:
+    1px solid #e5e7eb;
+}
+
+/* chargement */
+
+.map-loading,
+.map-error {
+  padding: 60px 20px;
+
+  text-align: center;
+
+  color: #6b7280;
+
+  font-size: 18px;
+}
+
+/* ======================================================
+   TABLETTE / MOBILE
+====================================================== */
+
+@media (max-width: 700px) {
+
+  .map-card {
+    padding:
+      22px 12px;
+
+    border-radius: 24px;
+  }
+
+  .map-country-name {
+    font-size: 30px;
+
+    margin-bottom: 18px;
+  }
+
+  .map-instruction {
+    font-size: 16px;
+  }
+
+  .europe-map-container {
+    min-height: 360px;
+
+    border-radius: 18px;
+  }
+
+  .interactive-europe-map {
+    min-width: 700px;
+  }
+
+  .europe-map-container {
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+  .map-control-button {
+    height: 42px;
+
+    min-width: 45px;
+  }
+
+  .map-reset-button {
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 450px) {
+
+  .map-card {
+    padding:
+      18px 8px;
+  }
+
+  .map-country-name {
+    font-size: 27px;
+  }
+
+  .europe-map-container {
+    min-height: 330px;
+  }
+
+  .interactive-europe-map {
+    min-width: 650px;
+  }
+}
