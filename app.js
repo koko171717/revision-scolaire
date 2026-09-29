@@ -1,402 +1,1333 @@
-const SUPABASE_URL = "https://bohstmyjornxpvjwmldk.supabase.co";
-const SUPABASE_KEY = "sb_publishable_24le4__Z_AASUmxBRyoIGQ_5ccDOucQ";
+// ============================================================
+// CONFIGURATION SUPABASE
+// ============================================================
 
-const supabaseClient = supabase.createClient(
-  SUPABASE_URL,
-  SUPABASE_KEY
-);
+const SUPABASE_URL =
+  "https://bohstmyjornxpvjwmldk.supabase.co";
 
-const container = document.getElementById("subjects");
-const title = document.querySelector("h1");
-const subtitle = document.querySelector("header p");
+const SUPABASE_KEY =
+  "sb_publishable_24le4__Z_AASUmxBRyoIGQ_5ccDOucQ";
+
+const supabaseClient =
+  supabase.createClient(
+    SUPABASE_URL,
+    SUPABASE_KEY
+  );
+
+
+// ============================================================
+// ÉLÉMENTS PRINCIPAUX
+// ============================================================
+
+const container =
+  document.getElementById("subjects");
+
+const title =
+  document.querySelector("h1");
+
+const subtitle =
+  document.querySelector("header p");
+
+
+// ============================================================
+// ÉTAT DE NAVIGATION
+// ============================================================
 
 let currentSubject = null;
 let currentChapter = null;
 
+let allSubjectChapters = [];
+
+let navigationStack = [];
+
+
+// ============================================================
+// RÉVISION
+// ============================================================
+
 let reviewQuestions = [];
 let currentQuestionIndex = 0;
+
+
+// ============================================================
+// TEST
+// ============================================================
 
 let testQuestions = [];
 let currentTestIndex = 0;
 let testScore = 0;
 
+
+// ============================================================
+// CARTE
+// ============================================================
+
 let currentMapCards = [];
+
 let mapOriginalViewBox = null;
 let mapCurrentViewBox = null;
 
-/* ======================================================
-   ACCUEIL
-====================================================== */
+
+// ============================================================
+// DÉMARRAGE
+// ============================================================
+
+loadSubjects();
+
+
+// ============================================================
+// ACCUEIL
+// ============================================================
 
 async function loadSubjects() {
+
   currentSubject = null;
   currentChapter = null;
 
-  title.textContent = "Révisions scolaires";
-  subtitle.textContent = "Choisis une matière";
+  allSubjectChapters = [];
+  navigationStack = [];
 
-  const { data, error } = await supabaseClient
+  title.textContent =
+    "Révisions scolaires";
+
+  subtitle.textContent =
+    "Choisis une matière";
+
+  container.innerHTML =
+    "<p>Chargement...</p>";
+
+  const {
+    data,
+    error
+  } = await supabaseClient
     .from("subjects")
     .select("*")
-    .order("sort_order");
+    .order(
+      "sort_order",
+      { ascending: true }
+    );
 
   if (error) {
+
     console.error(error);
-    container.innerHTML = "<p>Impossible de charger les matières.</p>";
+
+    container.innerHTML = `
+      <p>
+        Impossible de charger les matières.
+      </p>
+    `;
+
     return;
   }
 
   container.innerHTML = "";
 
   data.forEach(subject => {
-    const card = document.createElement("div");
-    card.className = "subject-card";
+
+    const card =
+      document.createElement("div");
+
+    card.className =
+      "subject-card";
 
     card.innerHTML = `
-      <div class="subject-icon">${subject.icon || "📚"}</div>
-      <div class="subject-name">${subject.name}</div>
+      <div class="subject-icon">
+        ${subject.icon || "📚"}
+      </div>
+
+      <div class="subject-name">
+        ${escapeHtml(subject.name)}
+      </div>
     `;
 
-    card.addEventListener("click", () => {
-      loadChapters(subject);
-    });
+    card.addEventListener(
+      "click",
+      () => openSubject(subject)
+    );
 
     container.appendChild(card);
   });
 }
 
-/* ======================================================
-   CHAPITRES
-====================================================== */
 
-async function loadChapters(subject) {
+// ============================================================
+// OUVRIR UNE MATIÈRE
+// ============================================================
+
+async function openSubject(subject) {
+
   currentSubject = subject;
+  currentChapter = null;
 
-  title.textContent = subject.name;
-  subtitle.textContent = "Choisis un chapitre";
+  navigationStack = [];
 
-  const { data, error } = await supabaseClient
+  title.textContent =
+    subject.name;
+
+  subtitle.textContent =
+    "Choisis une rubrique";
+
+  container.innerHTML =
+    "<p>Chargement...</p>";
+
+  const {
+    data,
+    error
+  } = await supabaseClient
     .from("chapters")
     .select("*")
-    .eq("subject_id", subject.id)
-    .order("sort_order");
+    .eq(
+      "subject_id",
+      subject.id
+    )
+    .order(
+      "sort_order",
+      { ascending: true }
+    );
 
   if (error) {
+
     console.error(error);
-    container.innerHTML = "<p>Impossible de charger les chapitres.</p>";
+
+    container.innerHTML = `
+      <p>
+        Impossible de charger les chapitres.
+      </p>
+    `;
+
     return;
   }
+
+  allSubjectChapters =
+    data || [];
+
+  renderChapterLevel(null);
+}
+
+
+// ============================================================
+// AFFICHAGE D'UN NIVEAU DE CHAPITRES
+// ============================================================
+
+function renderChapterLevel(
+  parentChapterId
+) {
 
   container.innerHTML = "";
 
-  addBackButton(() => loadSubjects());
+  const children =
+    allSubjectChapters
+      .filter(chapter => {
 
-  if (!data || data.length === 0) {
-    const emptyCard = document.createElement("div");
-    emptyCard.className = "subject-card";
+        if (
+          parentChapterId === null
+        ) {
 
-    emptyCard.innerHTML = `
-      <div class="subject-icon">📭</div>
-      <div class="subject-name">Aucun chapitre</div>
+          return (
+            chapter.parent_chapter_id === null
+          );
+        }
+
+        return (
+          Number(
+            chapter.parent_chapter_id
+          ) ===
+          Number(
+            parentChapterId
+          )
+        );
+      })
+      .sort(
+        (a, b) =>
+          (a.sort_order || 0) -
+          (b.sort_order || 0)
+      );
+
+
+  // ----------------------------------------------------------
+  // TITRE
+  // ----------------------------------------------------------
+
+  if (
+    navigationStack.length === 0
+  ) {
+
+    title.textContent =
+      currentSubject.name;
+
+    subtitle.textContent =
+      "Choisis une rubrique";
+
+  } else {
+
+    const currentParent =
+      navigationStack[
+        navigationStack.length - 1
+      ];
+
+    title.textContent =
+      currentParent.name;
+
+    subtitle.textContent =
+      "Choisis une partie";
+  }
+
+
+  // ----------------------------------------------------------
+  // RETOUR
+  // ----------------------------------------------------------
+
+  addBackButton(() => {
+
+    if (
+      navigationStack.length === 0
+    ) {
+
+      loadSubjects();
+      return;
+    }
+
+    navigationStack.pop();
+
+    if (
+      navigationStack.length === 0
+    ) {
+
+      renderChapterLevel(null);
+
+    } else {
+
+      const previousParent =
+        navigationStack[
+          navigationStack.length - 1
+        ];
+
+      renderChapterLevel(
+        previousParent.id
+      );
+    }
+  });
+
+
+  // ----------------------------------------------------------
+  // AUCUN CHAPITRE
+  // ----------------------------------------------------------
+
+  if (
+    children.length === 0
+  ) {
+
+    const empty =
+      document.createElement("div");
+
+    empty.className =
+      "subject-card disabled-card";
+
+    empty.innerHTML = `
+      <div class="subject-icon">
+        📭
+      </div>
+
+      <div class="subject-name">
+        Aucun contenu pour le moment
+      </div>
     `;
 
-    container.appendChild(emptyCard);
+    container.appendChild(empty);
+
     return;
   }
 
-  data.forEach(chapter => {
-    const card = document.createElement("div");
-    card.className = "subject-card";
 
-    let icon = "📘";
+  // ----------------------------------------------------------
+  // CARTES
+  // ----------------------------------------------------------
 
-    if (chapter.content_type === "flags") {
-      icon = "🏳️";
+  children.forEach(chapter => {
+
+    const hasChildren =
+      allSubjectChapters.some(
+        possibleChild =>
+          Number(
+            possibleChild.parent_chapter_id
+          ) === Number(chapter.id)
+      );
+
+
+    const card =
+      document.createElement("div");
+
+    card.className =
+      "subject-card";
+
+
+    const icon =
+      getChapterIcon(
+        chapter,
+        hasChildren
+      );
+
+
+    let description = "";
+
+    if (hasChildren) {
+
+      description =
+        "Ouvrir";
+
+    } else if (
+      chapter.content_type === "map"
+    ) {
+
+      description =
+        "Carte interactive";
+
+    } else if (
+      chapter.content_type === "flags"
+    ) {
+
+      description =
+        "Drapeaux";
+
+    } else if (
+      chapter.test_mode === "qcm"
+    ) {
+
+      description =
+        "Révision + QCM";
+
+    } else if (
+      chapter.test_mode === "written"
+    ) {
+
+      description =
+        "Cartes + test écrit";
     }
 
-    if (chapter.content_type === "map") {
-      icon = "🗺️";
-    }
 
     card.innerHTML = `
-      <div class="subject-icon">${icon}</div>
-      <div class="subject-name">${chapter.name}</div>
+      <div class="subject-icon">
+        ${icon}
+      </div>
+
+      <div class="subject-name">
+        ${escapeHtml(chapter.name)}
+      </div>
+
+      ${
+        description
+          ? `
+            <div class="mode-description">
+              ${description}
+            </div>
+          `
+          : ""
+      }
     `;
 
-    card.addEventListener("click", () => {
-      showModes(chapter);
-    });
+
+    card.addEventListener(
+      "click",
+      () => {
+
+        if (hasChildren) {
+
+          navigationStack.push(
+            chapter
+          );
+
+          renderChapterLevel(
+            chapter.id
+          );
+
+        } else {
+
+          showModes(
+            chapter
+          );
+        }
+      }
+    );
+
 
     container.appendChild(card);
   });
 }
 
-/* ======================================================
-   CHOIX DU MODE
-====================================================== */
+
+// ============================================================
+// ICÔNES
+// ============================================================
+
+function getChapterIcon(
+  chapter,
+  hasChildren
+) {
+
+  if (
+    chapter.name === "Vocabulaire"
+  ) {
+    return "🔤";
+  }
+
+  if (
+    chapter.name === "Grammaire"
+  ) {
+    return "✏️";
+  }
+
+  if (
+    /^TS\d+/i.test(
+      chapter.name
+    )
+  ) {
+    return "📝";
+  }
+
+  if (
+    chapter.name.includes(
+      "Unit"
+    )
+  ) {
+    return "📚";
+  }
+
+  if (
+    chapter.name === "Family"
+  ) {
+    return "👨‍👩‍👧";
+  }
+
+  if (
+    chapter.name === "Housework"
+  ) {
+    return "🧹";
+  }
+
+  if (
+    chapter.name === "Home objects"
+  ) {
+    return "🏠";
+  }
+
+  if (
+    chapter.name ===
+    "Words and phrases"
+  ) {
+    return "💬";
+  }
+
+  if (
+    chapter.name ===
+    "Everyday English"
+  ) {
+    return "🗣️";
+  }
+
+  if (
+    chapter.name
+      .toLowerCase()
+      .includes("toute")
+  ) {
+    return "🎯";
+  }
+
+  if (
+    chapter.content_type === "flags"
+  ) {
+    return "🏳️";
+  }
+
+  if (
+    chapter.content_type === "map"
+  ) {
+    return "🗺️";
+  }
+
+  if (hasChildren) {
+    return "📂";
+  }
+
+  return "📘";
+}
+
+
+// ============================================================
+// CHOIX RÉVISION / TEST
+// ============================================================
 
 function showModes(chapter) {
+
   currentChapter = chapter;
 
-  title.textContent = chapter.name;
-  subtitle.textContent = "Choisis ton mode";
+  title.textContent =
+    chapter.name;
+
+  subtitle.textContent =
+    "Choisis ton mode";
 
   container.innerHTML = "";
 
-  addBackButton(() => loadChapters(currentSubject));
 
-  const revisionCard = document.createElement("div");
-  revisionCard.className = "subject-card";
+  addBackButton(() => {
 
-  if (chapter.content_type === "flags") {
+    if (
+      navigationStack.length === 0
+    ) {
+
+      renderChapterLevel(null);
+
+    } else {
+
+      const parent =
+        navigationStack[
+          navigationStack.length - 1
+        ];
+
+      renderChapterLevel(
+        parent.id
+      );
+    }
+  });
+
+
+  // ----------------------------------------------------------
+  // RÉVISION
+  // ----------------------------------------------------------
+
+  const revisionCard =
+    document.createElement("div");
+
+  revisionCard.className =
+    "subject-card";
+
+
+  if (
+    chapter.content_type === "flags"
+  ) {
+
     revisionCard.innerHTML = `
-      <div class="subject-icon">🏳️</div>
-      <div class="subject-name">Révision</div>
+      <div class="subject-icon">
+        🏳️
+      </div>
+
+      <div class="subject-name">
+        Révision
+      </div>
+
       <div class="mode-description">
-        Drapeau → Pays
+        Drapeau → pays
       </div>
     `;
-  } else if (chapter.content_type === "map") {
+
+  } else if (
+    chapter.content_type === "map"
+  ) {
+
     revisionCard.innerHTML = `
-      <div class="subject-icon">🗺️</div>
-      <div class="subject-name">Révision</div>
+      <div class="subject-icon">
+        🗺️
+      </div>
+
+      <div class="subject-name">
+        Révision
+      </div>
+
       <div class="mode-description">
-        Trouve les pays sur la carte
+        Retrouve les pays sur la carte
       </div>
     `;
+
   } else {
+
     revisionCard.innerHTML = `
-      <div class="subject-icon">📚</div>
-      <div class="subject-name">Révision</div>
+      <div class="subject-icon">
+        📚
+      </div>
+
+      <div class="subject-name">
+        Révision
+      </div>
+
       <div class="mode-description">
-        Apprends à ton rythme et affiche la réponse.
+        Cartes de révision
       </div>
     `;
   }
 
-  revisionCard.addEventListener("click", () => {
-    if (chapter.content_type === "flags") {
-      startFlagReview(chapter);
-    } else if (chapter.content_type === "map") {
-      startMapReview(chapter);
-    } else if (chapter.direction_mode === "single") {
-      startReview(chapter, "forward");
-    } else {
-      showReviewDirection();
+
+  revisionCard.addEventListener(
+    "click",
+    () => {
+
+      if (
+        chapter.content_type ===
+        "flags"
+      ) {
+
+        startFlagReview(
+          chapter
+        );
+
+      } else if (
+        chapter.content_type ===
+        "map"
+      ) {
+
+        startMapReview(
+          chapter
+        );
+
+      } else if (
+        chapter.direction_mode ===
+        "bidirectional"
+      ) {
+
+        showDirectionChoice(
+          "review"
+        );
+
+      } else {
+
+        startReview(
+          chapter,
+          "forward"
+        );
+      }
     }
-  });
+  );
 
-  container.appendChild(revisionCard);
 
-  const testCard = document.createElement("div");
+  container.appendChild(
+    revisionCard
+  );
 
-  if (chapter.test_mode === "disabled") {
-    testCard.className = "subject-card disabled-card";
+
+  // ----------------------------------------------------------
+  // TEST
+  // ----------------------------------------------------------
+
+  const testCard =
+    document.createElement("div");
+
+
+  if (
+    chapter.test_mode ===
+    "disabled"
+  ) {
+
+    testCard.className =
+      "subject-card disabled-card";
 
     testCard.innerHTML = `
-      <div class="subject-icon">🎯</div>
-      <div class="subject-name">Test</div>
+      <div class="subject-icon">
+        🎯
+      </div>
+
+      <div class="subject-name">
+        Test
+      </div>
+
       <div class="mode-description">
-        Test bientôt disponible
+        Pas de test disponible
       </div>
     `;
+
   } else {
-    testCard.className = "subject-card";
 
-    if (chapter.content_type === "flags") {
-      testCard.innerHTML = `
-        <div class="subject-icon">🎯</div>
-        <div class="subject-name">Test QCM</div>
-        <div class="mode-description">
-          Pays → Drapeau
-        </div>
-      `;
-    } else if (chapter.content_type === "map") {
-      testCard.innerHTML = `
-        <div class="subject-icon">🎯</div>
-        <div class="subject-name">Test</div>
-        <div class="mode-description">
-          20 pays à retrouver sur la carte
-        </div>
-      `;
-    } else {
-      let description = "Écris ta réponse et obtiens ton score.";
+    testCard.className =
+      "subject-card";
 
-      if (chapter.test_mode === "qcm") {
-        description = "Choisis la bonne réponse parmi 4 propositions.";
-      }
 
-      testCard.innerHTML = `
-        <div class="subject-icon">🎯</div>
-        <div class="subject-name">Test</div>
-        <div class="mode-description">
-          ${description}
-        </div>
-      `;
+    let description =
+      "Teste tes connaissances";
+
+
+    if (
+      chapter.test_mode === "written"
+    ) {
+
+      description =
+        "Écris les réponses";
+
+    } else if (
+      chapter.test_mode === "qcm"
+    ) {
+
+      description =
+        "Choisis la bonne réponse";
+
+    } else if (
+      chapter.content_type ===
+      "flags"
+    ) {
+
+      description =
+        "Choisis le bon drapeau";
+
+    } else if (
+      chapter.content_type ===
+      "map"
+    ) {
+
+      description =
+        "Retrouve 20 pays";
     }
 
-    testCard.addEventListener("click", () => {
-      if (chapter.content_type === "flags") {
-        startFlagTest(chapter);
-      } else if (chapter.content_type === "map") {
-        startMapTest(chapter);
-      } else if (chapter.direction_mode === "single") {
-        startTest(chapter, "forward");
-      } else {
-        showTestDirection();
+
+    testCard.innerHTML = `
+      <div class="subject-icon">
+        🎯
+      </div>
+
+      <div class="subject-name">
+        Test
+      </div>
+
+      <div class="mode-description">
+        ${description}
+      </div>
+    `;
+
+
+    testCard.addEventListener(
+      "click",
+      () => {
+
+        if (
+          chapter.content_type ===
+          "flags"
+        ) {
+
+          startFlagTest(
+            chapter
+          );
+
+        } else if (
+          chapter.content_type ===
+          "map"
+        ) {
+
+          startMapTest(
+            chapter
+          );
+
+        } else if (
+          chapter.direction_mode ===
+          "bidirectional"
+        ) {
+
+          showDirectionChoice(
+            "test"
+          );
+
+        } else {
+
+          startTest(
+            chapter,
+            "forward"
+          );
+        }
       }
-    });
+    );
   }
 
-  container.appendChild(testCard);
+
+  container.appendChild(
+    testCard
+  );
 }
 
-/* ======================================================
-   CHOIX DU SENS
-====================================================== */
 
-function showReviewDirection() {
-  title.textContent = currentChapter.name;
-  subtitle.textContent = "Choisis le sens de révision";
+// ============================================================
+// CHOIX DU SENS
+// ============================================================
+
+function showDirectionChoice(mode) {
+
+  title.textContent =
+    currentChapter.name;
+
+  subtitle.textContent =
+    mode === "review"
+      ? "Choisis le sens de révision"
+      : "Choisis le sens du test";
 
   container.innerHTML = "";
 
-  addBackButton(() => showModes(currentChapter));
 
-  addDirectionCards(direction => {
-    startReview(currentChapter, direction);
+  addBackButton(() => {
+    showModes(
+      currentChapter
+    );
+  });
+
+
+  const isLanguage =
+    ["Anglais", "Allemand", "Français"]
+      .includes(
+        currentSubject?.name
+      );
+
+
+  const choices = [
+
+    {
+      direction:
+        "forward",
+
+      icon:
+        "➡️",
+
+      title:
+        isLanguage
+          ? getForwardLanguageLabel()
+          : "Sens normal",
+
+      description:
+        isLanguage
+          ? getForwardLanguageExample()
+          : "Question → réponse"
+    },
+
+    {
+      direction:
+        "reverse",
+
+      icon:
+        "⬅️",
+
+      title:
+        isLanguage
+          ? getReverseLanguageLabel()
+          : "Sens inverse",
+
+      description:
+        isLanguage
+          ? getReverseLanguageExample()
+          : "Réponse → question"
+    },
+
+    {
+      direction:
+        "both",
+
+      icon:
+        "🔀",
+
+      title:
+        "Les deux",
+
+      description:
+        "Mélange les deux sens"
+    }
+  ];
+
+
+  choices.forEach(choice => {
+
+    const card =
+      document.createElement("div");
+
+    card.className =
+      "subject-card";
+
+    card.innerHTML = `
+      <div class="subject-icon">
+        ${choice.icon}
+      </div>
+
+      <div class="subject-name">
+        ${choice.title}
+      </div>
+
+      <div class="mode-description">
+        ${choice.description}
+      </div>
+    `;
+
+
+    card.addEventListener(
+      "click",
+      () => {
+
+        if (
+          mode === "review"
+        ) {
+
+          startReview(
+            currentChapter,
+            choice.direction
+          );
+
+        } else {
+
+          startTest(
+            currentChapter,
+            choice.direction
+          );
+        }
+      }
+    );
+
+
+    container.appendChild(card);
   });
 }
 
-function showTestDirection() {
-  title.textContent = currentChapter.name;
-  subtitle.textContent = "Choisis le sens du test";
 
-  container.innerHTML = "";
+// ============================================================
+// LIBELLÉS LANGUES
+// ============================================================
 
-  addBackButton(() => showModes(currentChapter));
+function getForwardLanguageLabel() {
 
-  addDirectionCards(direction => {
-    startTest(currentChapter, direction);
-  });
+  if (
+    currentSubject?.name ===
+    "Anglais"
+  ) {
+    return "Anglais → Français";
+  }
+
+  if (
+    currentSubject?.name ===
+    "Allemand"
+  ) {
+    return "Allemand → Français";
+  }
+
+  return "Question → réponse";
 }
 
-function addDirectionCards(callback) {
-  const forwardCard = document.createElement("div");
-  forwardCard.className = "subject-card";
 
-  forwardCard.innerHTML = `
-    <div class="subject-icon">➡️</div>
-    <div class="subject-name">Sens normal</div>
-    <div class="mode-description">
-      Exemple : Suisse → Berne
-    </div>
-  `;
+function getReverseLanguageLabel() {
 
-  forwardCard.addEventListener("click", () => {
-    callback("forward");
-  });
+  if (
+    currentSubject?.name ===
+    "Anglais"
+  ) {
+    return "Français → Anglais";
+  }
 
-  container.appendChild(forwardCard);
+  if (
+    currentSubject?.name ===
+    "Allemand"
+  ) {
+    return "Français → Allemand";
+  }
 
-  const reverseCard = document.createElement("div");
-  reverseCard.className = "subject-card";
-
-  reverseCard.innerHTML = `
-    <div class="subject-icon">⬅️</div>
-    <div class="subject-name">Sens inverse</div>
-    <div class="mode-description">
-      Exemple : Berne → Suisse
-    </div>
-  `;
-
-  reverseCard.addEventListener("click", () => {
-    callback("reverse");
-  });
-
-  container.appendChild(reverseCard);
-
-  const bothCard = document.createElement("div");
-  bothCard.className = "subject-card";
-
-  bothCard.innerHTML = `
-    <div class="subject-icon">🔀</div>
-    <div class="subject-name">Les deux</div>
-    <div class="mode-description">
-      Mélange les deux sens
-    </div>
-  `;
-
-  bothCard.addEventListener("click", () => {
-    callback("both");
-  });
-
-  container.appendChild(bothCard);
+  return "Réponse → question";
 }
 
-/* ======================================================
-   RÉVISION TEXTE
-====================================================== */
 
-async function startReview(chapter, direction) {
-  title.textContent = chapter.name;
-  subtitle.textContent = "Mode Révision";
+function getForwardLanguageExample() {
 
-  container.innerHTML = "<p>Chargement des questions...</p>";
+  if (
+    currentSubject?.name ===
+    "Anglais"
+  ) {
+    return "Ex. mother → mère";
+  }
 
-  const data = await loadCards(chapter);
+  if (
+    currentSubject?.name ===
+    "Allemand"
+  ) {
+    return "Mot allemand → français";
+  }
 
-  if (!data) return;
+  return "Question → réponse";
+}
 
-  reviewQuestions = buildQuestions(data, direction);
 
-  shuffleArray(reviewQuestions);
+function getReverseLanguageExample() {
+
+  if (
+    currentSubject?.name ===
+    "Anglais"
+  ) {
+    return "Ex. mère → mother";
+  }
+
+  if (
+    currentSubject?.name ===
+    "Allemand"
+  ) {
+    return "Français → mot allemand";
+  }
+
+  return "Réponse → question";
+}
+
+
+// ============================================================
+// CHARGEMENT DES CARTES
+// ============================================================
+
+async function loadCards(chapter) {
+
+  const {
+    data,
+    error
+  } = await supabaseClient
+    .from("cards")
+    .select("*")
+    .eq(
+      "chapter_id",
+      chapter.id
+    )
+    .eq(
+      "active",
+      true
+    )
+    .order(
+      "sort_order",
+      { ascending: true }
+    );
+
+
+  if (error) {
+
+    console.error(error);
+
+    container.innerHTML = `
+      <p>
+        Impossible de charger les questions.
+      </p>
+    `;
+
+    return null;
+  }
+
+
+  if (
+    !data ||
+    data.length === 0
+  ) {
+
+    container.innerHTML = `
+      <div class="review-box">
+
+        <div class="review-question">
+          Aucun contenu pour le moment.
+        </div>
+
+        <button
+          id="empty-back"
+          class="secondary-button"
+        >
+          ← Retour
+        </button>
+
+      </div>
+    `;
+
+    document
+      .getElementById(
+        "empty-back"
+      )
+      .addEventListener(
+        "click",
+        () =>
+          showModes(chapter)
+      );
+
+    return null;
+  }
+
+
+  return data;
+}
+
+
+// ============================================================
+// CONSTRUCTION QUESTIONS
+// ============================================================
+
+function buildQuestions(
+  cards,
+  direction
+) {
+
+  const questions = [];
+
+
+  cards.forEach(card => {
+
+    if (
+      direction === "forward" ||
+      direction === "both"
+    ) {
+
+      questions.push({
+        question:
+          card.question,
+
+        answer:
+          card.answer,
+
+        card
+      });
+    }
+
+
+    if (
+      (
+        direction === "reverse" ||
+        direction === "both"
+      ) &&
+      card.reverse_question &&
+      card.reverse_answer
+    ) {
+
+      questions.push({
+        question:
+          card.reverse_question,
+
+        answer:
+          card.reverse_answer,
+
+        card
+      });
+    }
+  });
+
+
+  return questions;
+}
+
+
+// ============================================================
+// RÉVISION TEXTE
+// ============================================================
+
+async function startReview(
+  chapter,
+  direction
+) {
+
+  title.textContent =
+    chapter.name;
+
+  subtitle.textContent =
+    "Mode Révision";
+
+  container.innerHTML =
+    "<p>Chargement...</p>";
+
+
+  const cards =
+    await loadCards(chapter);
+
+  if (!cards) return;
+
+
+  reviewQuestions =
+    buildQuestions(
+      cards,
+      direction
+    );
+
+
+  shuffleArray(
+    reviewQuestions
+  );
+
 
   currentQuestionIndex = 0;
 
-  showReviewQuestion();
+  showReviewQuestion(
+    direction
+  );
 }
 
-function showReviewQuestion() {
-  if (currentQuestionIndex >= reviewQuestions.length) {
-    showReviewFinished();
+
+function showReviewQuestion(
+  direction
+) {
+
+  if (
+    currentQuestionIndex >=
+    reviewQuestions.length
+  ) {
+
+    showReviewFinished(
+      direction
+    );
+
     return;
   }
 
-  const current = reviewQuestions[currentQuestionIndex];
 
-  title.textContent = currentChapter.name;
+  const current =
+    reviewQuestions[
+      currentQuestionIndex
+    ];
 
-  subtitle.textContent =
-    `Question ${currentQuestionIndex + 1} sur ${reviewQuestions.length}`;
+
+  title.textContent =
+    currentChapter.name;
+
+  subtitle.textContent = `
+    Question
+    ${currentQuestionIndex + 1}
+    sur
+    ${reviewQuestions.length}
+  `;
+
 
   container.innerHTML = "";
 
-  const reviewBox = document.createElement("div");
-  reviewBox.className = "review-box";
 
-  reviewBox.innerHTML = `
+  const box =
+    document.createElement("div");
+
+  box.className =
+    "review-box";
+
+
+  box.innerHTML = `
+
     <div class="review-question">
-      ${current.question}
+      ${escapeHtml(
+        current.question
+      )}
     </div>
 
-    <button id="show-answer" class="main-button">
+
+    <button
+      id="show-answer"
+      class="main-button"
+    >
       Voir la réponse
     </button>
 
-    <div id="answer-area" class="answer-area hidden">
+
+    <div
+      id="answer-area"
+      class="hidden"
+    >
 
       <div class="review-answer">
-        ${current.answer}
+        ${escapeHtml(
+          current.answer
+        )}
       </div>
+
 
       <div class="review-actions">
 
-        <button id="wrong-button" class="review-button">
+        <button
+          id="wrong-button"
+          class="review-button"
+        >
           ❌ À revoir
         </button>
 
-        <button id="correct-button" class="review-button">
+        <button
+          id="correct-button"
+          class="review-button"
+        >
           ✅ Je savais
         </button>
 
@@ -404,260 +1335,1687 @@ function showReviewQuestion() {
 
     </div>
 
-    <button id="quit-review" class="secondary-button review-back-button">
-      ← Retour
+
+    <button
+      id="quit-review"
+      class="secondary-button review-back-button"
+    >
+      ← Quitter la révision
     </button>
   `;
 
-  container.appendChild(reviewBox);
+
+  container.appendChild(box);
+
 
   document
-    .getElementById("show-answer")
-    .addEventListener("click", showAnswer);
+    .getElementById(
+      "show-answer"
+    )
+    .addEventListener(
+      "click",
+      () => {
 
-  document
-    .getElementById("wrong-button")
-    .addEventListener("click", answerWrong);
+        document
+          .getElementById(
+            "answer-area"
+          )
+          .classList.remove(
+            "hidden"
+          );
 
-  document
-    .getElementById("correct-button")
-    .addEventListener("click", answerCorrect);
-
-  document
-    .getElementById("quit-review")
-    .addEventListener("click", () => {
-      if (currentChapter.direction_mode === "single") {
-        showModes(currentChapter);
-      } else {
-        showReviewDirection();
+        document
+          .getElementById(
+            "show-answer"
+          )
+          .classList.add(
+            "hidden"
+          );
       }
+    );
+
+
+  document
+    .getElementById(
+      "correct-button"
+    )
+    .addEventListener(
+      "click",
+      () => {
+
+        currentQuestionIndex++;
+
+        showReviewQuestion(
+          direction
+        );
+      }
+    );
+
+
+  document
+    .getElementById(
+      "wrong-button"
+    )
+    .addEventListener(
+      "click",
+      () => {
+
+        const missed =
+          reviewQuestions[
+            currentQuestionIndex
+          ];
+
+        reviewQuestions.push(
+          missed
+        );
+
+        currentQuestionIndex++;
+
+        showReviewQuestion(
+          direction
+        );
+      }
+    );
+
+
+  document
+    .getElementById(
+      "quit-review"
+    )
+    .addEventListener(
+      "click",
+      () => {
+
+        if (
+          currentChapter
+            .direction_mode ===
+          "bidirectional"
+        ) {
+
+          showDirectionChoice(
+            "review"
+          );
+
+        } else {
+
+          showModes(
+            currentChapter
+          );
+        }
+      }
+    );
+}
+
+
+// ============================================================
+// FIN RÉVISION
+// ============================================================
+
+function showReviewFinished(
+  direction = "forward"
+) {
+
+  title.textContent =
+    currentChapter.name;
+
+  subtitle.textContent =
+    "Révision terminée";
+
+  container.innerHTML = `
+    <div class="review-box">
+
+      <div class="subject-icon">
+        🎉
+      </div>
+
+      <div class="review-question">
+        Bravo !
+      </div>
+
+      <div class="mode-description">
+        Tu as terminé cette révision.
+      </div>
+
+      <button
+        id="restart-review"
+        class="main-button"
+      >
+        Nouvelle révision
+      </button>
+
+      <button
+        id="back-modes"
+        class="secondary-button"
+      >
+        Retour au chapitre
+      </button>
+
+    </div>
+  `;
+
+
+  document
+    .getElementById(
+      "restart-review"
+    )
+    .addEventListener(
+      "click",
+      () => {
+
+        if (
+          currentChapter
+            .content_type ===
+          "flags"
+        ) {
+
+          startFlagReview(
+            currentChapter
+          );
+
+        } else if (
+          currentChapter
+            .content_type ===
+          "map"
+        ) {
+
+          startMapReview(
+            currentChapter
+          );
+
+        } else {
+
+          startReview(
+            currentChapter,
+            direction
+          );
+        }
+      }
+    );
+
+
+  document
+    .getElementById(
+      "back-modes"
+    )
+    .addEventListener(
+      "click",
+      () =>
+        showModes(
+          currentChapter
+        )
+    );
+}
+
+
+// ============================================================
+// TEST TEXTE OU QCM
+// ============================================================
+
+async function startTest(
+  chapter,
+  direction
+) {
+
+  if (
+    chapter.test_mode === "qcm"
+  ) {
+
+    startQcmTest(
+      chapter
+    );
+
+    return;
+  }
+
+
+  title.textContent =
+    chapter.name;
+
+  subtitle.textContent =
+    "Test écrit";
+
+  container.innerHTML =
+    "<p>Chargement...</p>";
+
+
+  const cards =
+    await loadCards(chapter);
+
+  if (!cards) return;
+
+
+  testQuestions =
+    buildQuestions(
+      cards,
+      direction
+    );
+
+
+  shuffleArray(
+    testQuestions
+  );
+
+
+  testQuestions =
+    testQuestions.slice(
+      0,
+      20
+    );
+
+
+  currentTestIndex = 0;
+  testScore = 0;
+
+
+  showWrittenTestQuestion(
+    direction
+  );
+}
+
+
+// ============================================================
+// TEST ÉCRIT
+// ============================================================
+
+function showWrittenTestQuestion(
+  direction
+) {
+
+  if (
+    currentTestIndex >=
+    testQuestions.length
+  ) {
+
+    showTestFinished();
+
+    return;
+  }
+
+
+  const current =
+    testQuestions[
+      currentTestIndex
+    ];
+
+
+  const progress =
+    ((currentTestIndex + 1) /
+      testQuestions.length) *
+    100;
+
+
+  title.textContent =
+    currentChapter.name;
+
+  subtitle.textContent =
+    "Test écrit";
+
+
+  container.innerHTML = `
+    <div class="review-box">
+
+      <div class="qcm-topbar">
+
+        <div class="qcm-counter">
+          Question
+          ${currentTestIndex + 1}
+          <span>
+            sur
+            ${testQuestions.length}
+          </span>
+        </div>
+
+        <div class="qcm-score">
+          ⭐ ${testScore}
+        </div>
+
+      </div>
+
+
+      <div class="qcm-progress">
+
+        <div
+          class="qcm-progress-bar"
+          style="
+            width:${progress}%
+          "
+        ></div>
+
+      </div>
+
+
+      <div class="review-question">
+        ${escapeHtml(
+          current.question
+        )}
+      </div>
+
+
+      <input
+        id="written-answer"
+        type="text"
+        autocomplete="off"
+        autocapitalize="none"
+        spellcheck="false"
+        placeholder="Écris ta réponse"
+        style="
+          width:100%;
+          padding:18px;
+          font-size:20px;
+          border:2px solid #d1d5db;
+          border-radius:16px;
+          margin-bottom:18px;
+        "
+      />
+
+
+      <button
+        id="validate-written"
+        class="main-button"
+      >
+        Valider
+      </button>
+
+
+      <div
+        id="written-feedback"
+        class="hidden"
+        style="
+          margin-top:25px;
+          font-size:19px;
+          font-weight:700;
+        "
+      ></div>
+
+
+      <button
+        id="next-written"
+        class="main-button hidden"
+        style="margin-top:20px;"
+      >
+        Question suivante
+      </button>
+
+
+      <button
+        id="quit-test"
+        class="secondary-button"
+      >
+        ← Quitter le test
+      </button>
+
+    </div>
+  `;
+
+
+  const input =
+    document.getElementById(
+      "written-answer"
+    );
+
+  input.focus();
+
+
+  input.addEventListener(
+    "keydown",
+    event => {
+
+      if (
+        event.key === "Enter"
+      ) {
+
+        if (
+          !document
+            .getElementById(
+              "validate-written"
+            )
+            .classList
+            .contains("hidden")
+        ) {
+
+          validateWrittenAnswer();
+
+        } else {
+
+          currentTestIndex++;
+
+          showWrittenTestQuestion(
+            direction
+          );
+        }
+      }
+    }
+  );
+
+
+  document
+    .getElementById(
+      "validate-written"
+    )
+    .addEventListener(
+      "click",
+      validateWrittenAnswer
+    );
+
+
+  document
+    .getElementById(
+      "next-written"
+    )
+    .addEventListener(
+      "click",
+      () => {
+
+        currentTestIndex++;
+
+        showWrittenTestQuestion(
+          direction
+        );
+      }
+    );
+
+
+  document
+    .getElementById(
+      "quit-test"
+    )
+    .addEventListener(
+      "click",
+      () => {
+
+        if (
+          currentChapter
+            .direction_mode ===
+          "bidirectional"
+        ) {
+
+          showDirectionChoice(
+            "test"
+          );
+
+        } else {
+
+          showModes(
+            currentChapter
+          );
+        }
+      }
+    );
+}
+
+
+// ============================================================
+// VALIDATION TEST ÉCRIT
+// ============================================================
+
+function validateWrittenAnswer() {
+
+  const current =
+    testQuestions[
+      currentTestIndex
+    ];
+
+
+  const input =
+    document.getElementById(
+      "written-answer"
+    );
+
+
+  const feedback =
+    document.getElementById(
+      "written-feedback"
+    );
+
+
+  const validateButton =
+    document.getElementById(
+      "validate-written"
+    );
+
+
+  const nextButton =
+    document.getElementById(
+      "next-written"
+    );
+
+
+  const userAnswer =
+    input.value.trim();
+
+
+  if (!userAnswer) {
+    return;
+  }
+
+
+  const correct =
+    isAcceptedWrittenAnswer(
+      userAnswer,
+      current.answer
+    );
+
+
+  input.disabled = true;
+
+  validateButton.classList.add(
+    "hidden"
+  );
+
+  feedback.classList.remove(
+    "hidden"
+  );
+
+  nextButton.classList.remove(
+    "hidden"
+  );
+
+
+  if (correct) {
+
+    testScore++;
+
+    feedback.innerHTML = `
+      ✅ Correct !
+    `;
+
+    feedback.style.color =
+      "#15803d";
+
+  } else {
+
+    feedback.innerHTML = `
+      ❌ Réponse attendue :
+      <br>
+      <strong>
+        ${escapeHtml(
+          current.answer
+        )}
+      </strong>
+    `;
+
+    feedback.style.color =
+      "#b91c1c";
+  }
+}
+
+
+// ============================================================
+// TOLÉRANCE DES RÉPONSES ÉCRITES
+// ============================================================
+
+function isAcceptedWrittenAnswer(
+  userAnswer,
+  expectedAnswer
+) {
+
+  const normalizedUser =
+    normalizeAnswer(
+      userAnswer
+    );
+
+
+  const normalizedExpected =
+    normalizeAnswer(
+      expectedAnswer
+    );
+
+
+  if (
+    normalizedUser ===
+    normalizedExpected
+  ) {
+    return true;
+  }
+
+
+  // Permet plusieurs traductions :
+  // ex. "duvet, couette"
+  // ou "Va-t-en ! / Allez-vous en !"
+
+  const alternatives =
+    String(expectedAnswer)
+      .split(/\s*\/\s*|,\s*/)
+      .map(
+        alternative =>
+          normalizeAnswer(
+            alternative
+          )
+      )
+      .filter(Boolean);
+
+
+  return alternatives.includes(
+    normalizedUser
+  );
+}
+
+
+function normalizeAnswer(value) {
+
+  return String(value)
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(
+      /[\u0300-\u036f]/g,
+      ""
+    )
+    .replace(
+      /[’']/g,
+      ""
+    )
+    .replace(
+      /[.!?,;:()[\]{}]/g,
+      " "
+    )
+    .replace(
+      /\s+/g,
+      " "
+    )
+    .trim();
+}
+
+
+// ============================================================
+// QCM
+// ============================================================
+
+async function startQcmTest(
+  chapter
+) {
+
+  title.textContent =
+    chapter.name;
+
+  subtitle.textContent =
+    "Test QCM";
+
+  container.innerHTML =
+    "<p>Chargement...</p>";
+
+
+  const cards =
+    await loadCards(chapter);
+
+  if (!cards) return;
+
+
+  testQuestions =
+    cards
+      .filter(card =>
+        card.wrong_answer_1 &&
+        card.wrong_answer_2 &&
+        card.wrong_answer_3
+      )
+      .map(card => ({
+        question:
+          card.question,
+
+        answer:
+          card.answer,
+
+        options: [
+          card.answer,
+          card.wrong_answer_1,
+          card.wrong_answer_2,
+          card.wrong_answer_3
+        ]
+      }));
+
+
+  shuffleArray(
+    testQuestions
+  );
+
+
+  testQuestions =
+    testQuestions.slice(
+      0,
+      20
+    );
+
+
+  currentTestIndex = 0;
+  testScore = 0;
+
+
+  showQcmQuestion();
+}
+
+
+// ============================================================
+// AFFICHAGE QCM
+// ============================================================
+
+function showQcmQuestion() {
+
+  if (
+    currentTestIndex >=
+    testQuestions.length
+  ) {
+
+    showTestFinished();
+
+    return;
+  }
+
+
+  const current =
+    testQuestions[
+      currentTestIndex
+    ];
+
+
+  const options =
+    [...current.options];
+
+
+  shuffleArray(options);
+
+
+  const letters =
+    ["A", "B", "C", "D"];
+
+
+  const progress =
+    ((currentTestIndex + 1) /
+      testQuestions.length) *
+    100;
+
+
+  container.innerHTML = `
+
+    <div class="review-box qcm-card">
+
+      <div class="qcm-topbar">
+
+        <div class="qcm-counter">
+          Question
+          ${currentTestIndex + 1}
+
+          <span>
+            sur
+            ${testQuestions.length}
+          </span>
+        </div>
+
+        <div class="qcm-score">
+          ⭐ ${testScore}
+        </div>
+
+      </div>
+
+
+      <div class="qcm-progress">
+
+        <div
+          class="qcm-progress-bar"
+          style="
+            width:${progress}%
+          "
+        ></div>
+
+      </div>
+
+
+      <div class="review-question">
+        ${escapeHtml(
+          current.question
+        )}
+      </div>
+
+
+      <div
+        id="qcm-options"
+        class="qcm-grid"
+      >
+
+        ${options
+          .map(
+            (option, index) => `
+
+              <button
+                class="qcm-choice"
+                data-answer="${encodeURIComponent(
+                  option
+                )}"
+              >
+
+                <span
+                  class="qcm-letter"
+                >
+                  ${letters[index]}
+                </span>
+
+                <span>
+                  ${escapeHtml(
+                    option
+                  )}
+                </span>
+
+              </button>
+            `
+          )
+          .join("")}
+
+      </div>
+
+
+      <div
+        id="qcm-feedback"
+        class="hidden"
+        style="
+          margin-top:22px;
+          font-size:18px;
+          font-weight:700;
+        "
+      ></div>
+
+
+      <button
+        id="qcm-next"
+        class="main-button hidden"
+        style="margin-top:20px;"
+      >
+        Question suivante
+      </button>
+
+
+      <button
+        id="quit-qcm"
+        class="secondary-button"
+      >
+        ← Quitter le test
+      </button>
+
+    </div>
+  `;
+
+
+  document
+    .querySelectorAll(
+      ".qcm-choice"
+    )
+    .forEach(button => {
+
+      button.addEventListener(
+        "click",
+        () => {
+
+          answerQcm(
+            button,
+            current.answer
+          );
+        }
+      );
     });
-}
 
-function showAnswer() {
-  document
-    .getElementById("answer-area")
-    .classList.remove("hidden");
 
   document
-    .getElementById("show-answer")
-    .classList.add("hidden");
+    .getElementById(
+      "qcm-next"
+    )
+    .addEventListener(
+      "click",
+      () => {
+
+        currentTestIndex++;
+
+        showQcmQuestion();
+      }
+    );
+
+
+  document
+    .getElementById(
+      "quit-qcm"
+    )
+    .addEventListener(
+      "click",
+      () =>
+        showModes(
+          currentChapter
+        )
+    );
 }
 
-function answerCorrect() {
-  currentQuestionIndex++;
-  showReviewQuestion();
+
+// ============================================================
+// RÉPONSE QCM
+// ============================================================
+
+function answerQcm(
+  selectedButton,
+  correctAnswer
+) {
+
+  const buttons =
+    document.querySelectorAll(
+      ".qcm-choice"
+    );
+
+
+  buttons.forEach(button => {
+
+    button.disabled = true;
+
+
+    const answer =
+      decodeURIComponent(
+        button.dataset.answer
+      );
+
+
+    if (
+      answer === correctAnswer
+    ) {
+
+      button.classList.add(
+        "qcm-correct"
+      );
+    }
+  });
+
+
+  const selectedAnswer =
+    decodeURIComponent(
+      selectedButton.dataset.answer
+    );
+
+
+  const feedback =
+    document.getElementById(
+      "qcm-feedback"
+    );
+
+
+  feedback.classList.remove(
+    "hidden"
+  );
+
+
+  if (
+    selectedAnswer ===
+    correctAnswer
+  ) {
+
+    testScore++;
+
+    feedback.textContent =
+      "✅ Correct !";
+
+    feedback.style.color =
+      "#15803d";
+
+  } else {
+
+    selectedButton
+      .classList
+      .add(
+        "qcm-wrong"
+      );
+
+    feedback.innerHTML = `
+      ❌ Réponse :
+      <strong>
+        ${escapeHtml(
+          correctAnswer
+        )}
+      </strong>
+    `;
+
+    feedback.style.color =
+      "#b91c1c";
+  }
+
+
+  document
+    .getElementById(
+      "qcm-next"
+    )
+    .classList.remove(
+      "hidden"
+    );
 }
 
-function answerWrong() {
-  const missed =
-    reviewQuestions[currentQuestionIndex];
 
-  reviewQuestions.push(missed);
+// ============================================================
+// DRAPEAUX - RÉVISION
+// ============================================================
 
-  currentQuestionIndex++;
+async function startFlagReview(
+  chapter
+) {
 
-  showReviewQuestion();
-}
+  title.textContent =
+    chapter.name;
 
-/* ======================================================
-   RÉVISION DRAPEAUX
-====================================================== */
+  subtitle.textContent =
+    "Drapeau → pays";
 
-async function startFlagReview(chapter) {
-  title.textContent = chapter.name;
-  subtitle.textContent = "Drapeau → Pays";
+  container.innerHTML =
+    "<p>Chargement...</p>";
 
-  container.innerHTML = "<p>Chargement des drapeaux...</p>";
 
-  const data = await loadCards(chapter);
+  const cards =
+    await loadCards(chapter);
 
-  if (!data) return;
+  if (!cards) return;
 
-  reviewQuestions = data.map(card => ({
-    question: card.question,
-    answer: card.answer,
-    image_url: card.image_url
-  }));
 
-  shuffleArray(reviewQuestions);
+  reviewQuestions =
+    cards
+      .filter(card =>
+        card.image_url
+      )
+      .map(card => ({
+        question:
+          card.question,
+
+        answer:
+          card.answer,
+
+        image_url:
+          card.image_url
+      }));
+
+
+  shuffleArray(
+    reviewQuestions
+  );
+
 
   currentQuestionIndex = 0;
 
   showFlagReviewQuestion();
 }
 
+
 function showFlagReviewQuestion() {
-  if (currentQuestionIndex >= reviewQuestions.length) {
+
+  if (
+    currentQuestionIndex >=
+    reviewQuestions.length
+  ) {
+
     showReviewFinished();
+
     return;
   }
 
-  const current = reviewQuestions[currentQuestionIndex];
 
-  title.textContent = currentChapter.name;
+  const current =
+    reviewQuestions[
+      currentQuestionIndex
+    ];
 
-  subtitle.textContent =
-    `Question ${currentQuestionIndex + 1} sur ${reviewQuestions.length}`;
 
-  container.innerHTML = "";
-
-  const box = document.createElement("div");
-  box.className = "review-box";
-
-  box.innerHTML = `
-    <div class="flag-review-question">
-      Quel pays correspond à ce drapeau ?
-    </div>
-
-    <div class="flag-display">
-      <img
-        src="${current.image_url}"
-        alt="Drapeau à identifier"
-        class="flag-main-image"
-      />
-    </div>
-
-    <button id="show-answer" class="main-button">
-      Voir la réponse
-    </button>
-
-    <div id="answer-area" class="answer-area hidden">
-
-      <div class="review-answer">
-        ${current.answer}
-      </div>
-
-      <div class="review-actions">
-
-        <button id="wrong-button" class="review-button">
-          ❌ À revoir
-        </button>
-
-        <button id="correct-button" class="review-button">
-          ✅ Je savais
-        </button>
-
-      </div>
-
-    </div>
-
-    <button id="quit-review" class="secondary-button review-back-button">
-      ← Retour
-    </button>
+  subtitle.textContent = `
+    Question
+    ${currentQuestionIndex + 1}
+    sur
+    ${reviewQuestions.length}
   `;
 
-  container.appendChild(box);
+
+  container.innerHTML = `
+
+    <div class="review-box">
+
+      <div class="review-question">
+        Quel pays correspond
+        à ce drapeau ?
+      </div>
+
+
+      <div class="flag-display">
+
+        <img
+          src="${current.image_url}"
+          class="flag-main-image"
+          alt="Drapeau"
+        >
+
+      </div>
+
+
+      <button
+        id="show-flag-answer"
+        class="main-button"
+      >
+        Voir la réponse
+      </button>
+
+
+      <div
+        id="flag-answer-area"
+        class="hidden"
+      >
+
+        <div class="review-answer">
+          ${escapeHtml(
+            current.answer
+          )}
+        </div>
+
+
+        <div class="review-actions">
+
+          <button
+            id="flag-wrong"
+            class="review-button"
+          >
+            ❌ À revoir
+          </button>
+
+          <button
+            id="flag-correct"
+            class="review-button"
+          >
+            ✅ Je savais
+          </button>
+
+        </div>
+
+      </div>
+
+
+      <button
+        id="quit-flag-review"
+        class="secondary-button review-back-button"
+      >
+        ← Quitter
+      </button>
+
+    </div>
+  `;
+
 
   document
-    .getElementById("show-answer")
-    .addEventListener("click", showAnswer);
+    .getElementById(
+      "show-flag-answer"
+    )
+    .addEventListener(
+      "click",
+      () => {
+
+        document
+          .getElementById(
+            "flag-answer-area"
+          )
+          .classList.remove(
+            "hidden"
+          );
+
+        document
+          .getElementById(
+            "show-flag-answer"
+          )
+          .classList.add(
+            "hidden"
+          );
+      }
+    );
+
 
   document
-    .getElementById("wrong-button")
-    .addEventListener("click", () => {
-      const missed =
-        reviewQuestions[currentQuestionIndex];
+    .getElementById(
+      "flag-correct"
+    )
+    .addEventListener(
+      "click",
+      () => {
 
-      reviewQuestions.push(missed);
+        currentQuestionIndex++;
 
-      currentQuestionIndex++;
+        showFlagReviewQuestion();
+      }
+    );
 
-      showFlagReviewQuestion();
-    });
-
-  document
-    .getElementById("correct-button")
-    .addEventListener("click", () => {
-      currentQuestionIndex++;
-      showFlagReviewQuestion();
-    });
 
   document
-    .getElementById("quit-review")
-    .addEventListener("click", () => {
-      showModes(currentChapter);
-    });
+    .getElementById(
+      "flag-wrong"
+    )
+    .addEventListener(
+      "click",
+      () => {
+
+        reviewQuestions.push(
+          reviewQuestions[
+            currentQuestionIndex
+          ]
+        );
+
+        currentQuestionIndex++;
+
+        showFlagReviewQuestion();
+      }
+    );
+
+
+  document
+    .getElementById(
+      "quit-flag-review"
+    )
+    .addEventListener(
+      "click",
+      () =>
+        showModes(
+          currentChapter
+        )
+    );
 }
 
-/* ======================================================
-   CARTE - RÉVISION
-====================================================== */
 
-async function startMapReview(chapter) {
-  title.textContent = chapter.name;
-  subtitle.textContent = "Mode Révision";
+// ============================================================
+// DRAPEAUX - TEST
+// Pays -> 4 drapeaux
+// ============================================================
 
-  container.innerHTML = "<p>Chargement de la carte...</p>";
+async function startFlagTest(
+  chapter
+) {
 
-  const data = await loadCards(chapter);
+  title.textContent =
+    chapter.name;
 
-  if (!data) return;
+  subtitle.textContent =
+    "Test drapeaux";
 
-  currentMapCards = data.filter(card => card.map_code);
+  container.innerHTML =
+    "<p>Chargement...</p>";
 
-  reviewQuestions = [...currentMapCards];
 
-  shuffleArray(reviewQuestions);
+  const cards =
+    await loadCards(chapter);
+
+  if (!cards) return;
+
+
+  const validCards =
+    cards.filter(card =>
+      card.image_url
+    );
+
+
+  testQuestions =
+    [...validCards];
+
+
+  shuffleArray(
+    testQuestions
+  );
+
+
+  testQuestions =
+    testQuestions.slice(
+      0,
+      20
+    );
+
+
+  currentMapCards =
+    validCards;
+
+  currentTestIndex = 0;
+  testScore = 0;
+
+
+  showFlagTestQuestion();
+}
+
+
+function showFlagTestQuestion() {
+
+  if (
+    currentTestIndex >=
+    testQuestions.length
+  ) {
+
+    showTestFinished();
+
+    return;
+  }
+
+
+  const correct =
+    testQuestions[
+      currentTestIndex
+    ];
+
+
+  const wrongCards =
+    currentMapCards
+      .filter(card =>
+        card.id !== correct.id
+      );
+
+
+  shuffleArray(
+    wrongCards
+  );
+
+
+  const options = [
+    correct,
+    ...wrongCards.slice(
+      0,
+      3
+    )
+  ];
+
+
+  shuffleArray(options);
+
+
+  const progress =
+    ((currentTestIndex + 1) /
+      testQuestions.length) *
+    100;
+
+
+  container.innerHTML = `
+
+    <div class="review-box">
+
+      <div class="qcm-topbar">
+
+        <div class="qcm-counter">
+          Question
+          ${currentTestIndex + 1}
+
+          <span>
+            sur
+            ${testQuestions.length}
+          </span>
+        </div>
+
+        <div class="qcm-score">
+          ⭐ ${testScore}
+        </div>
+
+      </div>
+
+
+      <div class="qcm-progress">
+
+        <div
+          class="qcm-progress-bar"
+          style="
+            width:${progress}%
+          "
+        ></div>
+
+      </div>
+
+
+      <div class="review-question">
+        Quel est le drapeau de :
+        <br>
+        <strong>
+          ${escapeHtml(
+            correct.answer
+          )}
+        </strong>
+      </div>
+
+
+      <div
+        class="flag-qcm-grid"
+        id="flag-options"
+      >
+
+        ${options
+          .map(card => `
+
+            <button
+              class="flag-choice-button"
+              data-id="${card.id}"
+            >
+
+              <img
+                src="${card.image_url}"
+                alt="Drapeau"
+              >
+
+            </button>
+          `)
+          .join("")}
+
+      </div>
+
+
+      <div
+        id="flag-feedback"
+        class="hidden"
+        style="
+          margin-top:20px;
+          font-weight:700;
+        "
+      ></div>
+
+
+      <button
+        id="flag-next"
+        class="main-button hidden"
+        style="margin-top:20px;"
+      >
+        Question suivante
+      </button>
+
+
+      <button
+        id="quit-flag-test"
+        class="secondary-button"
+      >
+        ← Quitter
+      </button>
+
+    </div>
+  `;
+
+
+  document
+    .querySelectorAll(
+      ".flag-choice-button"
+    )
+    .forEach(button => {
+
+      button.addEventListener(
+        "click",
+        () => {
+
+          const selectedId =
+            Number(
+              button.dataset.id
+            );
+
+
+          const allButtons =
+            document.querySelectorAll(
+              ".flag-choice-button"
+            );
+
+
+          allButtons.forEach(
+            optionButton => {
+
+              optionButton.disabled =
+                true;
+
+
+              if (
+                Number(
+                  optionButton.dataset.id
+                ) ===
+                Number(correct.id)
+              ) {
+
+                optionButton.classList.add(
+                  "qcm-correct"
+                );
+              }
+            }
+          );
+
+
+          const feedback =
+            document.getElementById(
+              "flag-feedback"
+            );
+
+
+          feedback.classList.remove(
+            "hidden"
+          );
+
+
+          if (
+            selectedId ===
+            Number(correct.id)
+          ) {
+
+            testScore++;
+
+            feedback.textContent =
+              "✅ Correct !";
+
+            feedback.style.color =
+              "#15803d";
+
+          } else {
+
+            button.classList.add(
+              "qcm-wrong"
+            );
+
+            feedback.textContent =
+              "❌ Mauvais drapeau";
+
+            feedback.style.color =
+              "#b91c1c";
+          }
+
+
+          document
+            .getElementById(
+              "flag-next"
+            )
+            .classList.remove(
+              "hidden"
+            );
+        }
+      );
+    });
+
+
+  document
+    .getElementById(
+      "flag-next"
+    )
+    .addEventListener(
+      "click",
+      () => {
+
+        currentTestIndex++;
+
+        showFlagTestQuestion();
+      }
+    );
+
+
+  document
+    .getElementById(
+      "quit-flag-test"
+    )
+    .addEventListener(
+      "click",
+      () =>
+        showModes(
+          currentChapter
+        )
+    );
+}
+
+
+// ============================================================
+// CARTE - RÉVISION
+// ============================================================
+
+async function startMapReview(
+  chapter
+) {
+
+  title.textContent =
+    chapter.name;
+
+  subtitle.textContent =
+    "Révision carte";
+
+  container.innerHTML =
+    "<p>Chargement...</p>";
+
+
+  const cards =
+    await loadCards(chapter);
+
+  if (!cards) return;
+
+
+  currentMapCards =
+    cards.filter(card =>
+      card.map_code
+    );
+
+
+  reviewQuestions =
+    [...currentMapCards];
+
+
+  shuffleArray(
+    reviewQuestions
+  );
+
 
   currentQuestionIndex = 0;
 
   showMapReviewQuestion();
 }
 
+
 async function showMapReviewQuestion() {
-  if (currentQuestionIndex >= reviewQuestions.length) {
+
+  if (
+    currentQuestionIndex >=
+    reviewQuestions.length
+  ) {
+
     showReviewFinished();
+
     return;
   }
 
-  const current = reviewQuestions[currentQuestionIndex];
 
-  title.textContent = currentChapter.name;
+  const current =
+    reviewQuestions[
+      currentQuestionIndex
+    ];
 
-  subtitle.textContent =
-    `Question ${currentQuestionIndex + 1} sur ${reviewQuestions.length}`;
 
-  container.innerHTML = "";
-
-  const box = document.createElement("div");
-  box.className = "map-card";
-
-  box.innerHTML = `
-    <div class="map-instruction">
-      Trouve :
-    </div>
-
-    <div class="map-country-name">
-      ${current.answer}
-    </div>
-
-    <div class="map-controls">
-      <button class="map-control-button" id="map-zoom-out">−</button>
-      <button class="map-control-button map-reset-button" id="map-reset">Recentrer</button>
-      <button class="map-control-button" id="map-zoom-in">+</button>
-    </div>
-
-    <div id="map-container" class="europe-map-container">
-      <div class="map-loading">
-        Chargement de la carte...
-      </div>
-    </div>
-
-    <div id="map-feedback" class="map-feedback hidden"></div>
-
-    <button id="quit-map" class="qcm-back-button">
-      ← Quitter la révision
-    </button>
+  subtitle.textContent = `
+    Question
+    ${currentQuestionIndex + 1}
+    sur
+    ${reviewQuestions.length}
   `;
 
-  container.appendChild(box);
 
-  document
-    .getElementById("quit-map")
-    .addEventListener("click", () => {
-      showModes(currentChapter);
-    });
+  renderMapCard(
+    current,
+    "review"
+  );
+
 
   await loadInteractiveMap(
     current.map_code,
@@ -665,117 +3023,85 @@ async function showMapReviewQuestion() {
   );
 }
 
-/* ======================================================
-   CARTE - TEST
-====================================================== */
 
-async function startMapTest(chapter) {
-  title.textContent = chapter.name;
-  subtitle.textContent = "Mode Test";
+// ============================================================
+// CARTE - TEST
+// ============================================================
 
-  container.innerHTML = "<p>Chargement du test...</p>";
+async function startMapTest(
+  chapter
+) {
 
-  const data = await loadCards(chapter);
+  title.textContent =
+    chapter.name;
 
-  if (!data) return;
+  subtitle.textContent =
+    "Test carte";
+
+  container.innerHTML =
+    "<p>Chargement...</p>";
+
+
+  const cards =
+    await loadCards(chapter);
+
+  if (!cards) return;
+
 
   currentMapCards =
-    data.filter(card => card.map_code);
+    cards.filter(card =>
+      card.map_code
+    );
 
-  testQuestions = [...currentMapCards];
-
-  shuffleArray(testQuestions);
 
   testQuestions =
-    testQuestions.slice(0, 20);
+    [...currentMapCards];
+
+
+  shuffleArray(
+    testQuestions
+  );
+
+
+  testQuestions =
+    testQuestions.slice(
+      0,
+      20
+    );
+
 
   currentTestIndex = 0;
   testScore = 0;
 
+
   showMapTestQuestion();
 }
 
+
 async function showMapTestQuestion() {
-  if (currentTestIndex >= testQuestions.length) {
+
+  if (
+    currentTestIndex >=
+    testQuestions.length
+  ) {
+
     showTestFinished();
+
     return;
   }
 
+
   const current =
-    testQuestions[currentTestIndex];
+    testQuestions[
+      currentTestIndex
+    ];
 
-  title.textContent =
-    currentChapter.name;
 
-  subtitle.textContent =
-    `Question ${currentTestIndex + 1} sur ${testQuestions.length} • Score ${testScore}`;
+  renderMapCard(
+    current,
+    "test"
+  );
 
-  container.innerHTML = "";
-
-  const progress =
-    ((currentTestIndex + 1) /
-      testQuestions.length) * 100;
-
-  const box =
-    document.createElement("div");
-
-  box.className = "map-card";
-
-  box.innerHTML = `
-    <div class="qcm-topbar">
-
-      <div class="qcm-counter">
-        Question ${currentTestIndex + 1}
-        <span>sur ${testQuestions.length}</span>
-      </div>
-
-      <div class="qcm-score">
-        ⭐ ${testScore}
-      </div>
-
-    </div>
-
-    <div class="qcm-progress">
-      <div
-        class="qcm-progress-bar"
-        style="width: ${progress}%"
-      ></div>
-    </div>
-
-    <div class="map-instruction">
-      Clique sur :
-    </div>
-
-    <div class="map-country-name">
-      ${current.answer}
-    </div>
-
-    <div class="map-controls">
-      <button class="map-control-button" id="map-zoom-out">−</button>
-      <button class="map-control-button map-reset-button" id="map-reset">Recentrer</button>
-      <button class="map-control-button" id="map-zoom-in">+</button>
-    </div>
-
-    <div id="map-container" class="europe-map-container">
-      <div class="map-loading">
-        Chargement de la carte...
-      </div>
-    </div>
-
-    <div id="map-feedback" class="map-feedback hidden"></div>
-
-    <button id="quit-map" class="qcm-back-button">
-      ← Quitter le test
-    </button>
-  `;
-
-  container.appendChild(box);
-
-  document
-    .getElementById("quit-map")
-    .addEventListener("click", () => {
-      showModes(currentChapter);
-    });
 
   await loadInteractiveMap(
     current.map_code,
@@ -783,37 +3109,199 @@ async function showMapTestQuestion() {
   );
 }
 
-/* ======================================================
-   CHARGEMENT DE LA CARTE SVG
-====================================================== */
+
+// ============================================================
+// CARTE - INTERFACE
+// ============================================================
+
+function renderMapCard(
+  current,
+  mode
+) {
+
+  const index =
+    mode === "review"
+      ? currentQuestionIndex
+      : currentTestIndex;
+
+
+  const total =
+    mode === "review"
+      ? reviewQuestions.length
+      : testQuestions.length;
+
+
+  container.innerHTML = `
+
+    <div class="map-card">
+
+      ${
+        mode === "test"
+          ? `
+            <div class="qcm-topbar">
+
+              <div class="qcm-counter">
+                Question
+                ${index + 1}
+
+                <span>
+                  sur ${total}
+                </span>
+              </div>
+
+              <div class="qcm-score">
+                ⭐ ${testScore}
+              </div>
+
+            </div>
+          `
+          : ""
+      }
+
+
+      <div class="map-instruction">
+        ${
+          mode === "test"
+            ? "Clique sur :"
+            : "Trouve :"
+        }
+      </div>
+
+
+      <div class="map-country-name">
+        ${escapeHtml(
+          current.answer
+        )}
+      </div>
+
+
+      <div class="map-controls">
+
+        <button
+          id="map-zoom-out"
+          class="map-control-button"
+        >
+          −
+        </button>
+
+        <button
+          id="map-reset"
+          class="
+            map-control-button
+            map-reset-button
+          "
+        >
+          Recentrer
+        </button>
+
+        <button
+          id="map-zoom-in"
+          class="map-control-button"
+        >
+          +
+        </button>
+
+      </div>
+
+
+      <div
+        id="map-container"
+        class="europe-map-container"
+      >
+        Chargement de la carte...
+      </div>
+
+
+      <div
+        id="map-feedback"
+        class="hidden"
+        style="
+          margin-top:18px;
+          text-align:center;
+          font-weight:700;
+          font-size:18px;
+        "
+      ></div>
+
+
+      <button
+        id="quit-map"
+        class="secondary-button"
+        style="margin-top:20px;"
+      >
+        ← Quitter
+      </button>
+
+    </div>
+  `;
+
+
+  document
+    .getElementById(
+      "quit-map"
+    )
+    .addEventListener(
+      "click",
+      () =>
+        showModes(
+          currentChapter
+        )
+    );
+}
+
+
+// ============================================================
+// CHARGEMENT SVG
+// ============================================================
 
 async function loadInteractiveMap(
   correctCode,
   mode
 ) {
+
   const mapContainer =
-    document.getElementById("map-container");
+    document.getElementById(
+      "map-container"
+    );
+
 
   try {
+
     const response =
-      await fetch("europe-map.svg");
+      await fetch(
+        "europe-map.svg"
+      );
+
 
     if (!response.ok) {
-      throw new Error("Carte SVG introuvable");
+
+      throw new Error(
+        "europe-map.svg introuvable"
+      );
     }
+
 
     const svgText =
       await response.text();
 
+
     mapContainer.innerHTML =
       svgText;
 
+
     const svg =
-      mapContainer.querySelector("svg");
+      mapContainer.querySelector(
+        "svg"
+      );
+
 
     if (!svg) {
-      throw new Error("SVG invalide");
+
+      throw new Error(
+        "SVG invalide"
+      );
     }
+
 
     prepareEuropeMap(svg);
 
@@ -825,120 +3313,151 @@ async function loadInteractiveMap(
       mode
     );
 
+
   } catch (error) {
+
     console.error(error);
 
     mapContainer.innerHTML = `
-      <div class="map-error">
+      <p>
         Impossible de charger la carte.
-      </div>
+      </p>
     `;
   }
 }
 
-/* ======================================================
-   PRÉPARATION CARTE
-====================================================== */
+
+// ============================================================
+// PRÉPARER LA CARTE
+// ============================================================
 
 function prepareEuropeMap(svg) {
-  svg.removeAttribute("width");
-  svg.removeAttribute("height");
+
+  svg.removeAttribute(
+    "width"
+  );
+
+  svg.removeAttribute(
+    "height"
+  );
+
 
   svg.classList.add(
     "interactive-europe-map"
   );
+
 
   svg.setAttribute(
     "preserveAspectRatio",
     "xMidYMid meet"
   );
 
+
   const allowedCodes =
-    currentMapCards.map(card =>
-      String(card.map_code).toUpperCase()
-    );
-
-  const allGroups =
-    svg.querySelectorAll("g[id]");
-
-  allGroups.forEach(group => {
-    const code =
-      String(group.id).toUpperCase();
-
-    group.classList.remove(
-      "map-country",
-      "map-country-disabled",
-      "map-country-correct",
-      "map-country-wrong"
-    );
-
-    if (
-      allowedCodes.includes(code)
-    ) {
-      group.classList.add(
-        "map-country"
+    currentMapCards
+      .map(card =>
+        String(
+          card.map_code
+        ).toUpperCase()
       );
 
-      group.dataset.countryCode =
-        code;
-    } else {
-      group.classList.add(
-        "map-country-disabled"
+
+  svg
+    .querySelectorAll(
+      "g[id]"
+    )
+    .forEach(group => {
+
+      const code =
+        String(
+          group.id
+        ).toUpperCase();
+
+
+      group.classList.remove(
+        "map-country",
+        "map-country-disabled",
+        "map-country-correct",
+        "map-country-wrong"
       );
-    }
-  });
+
+
+      if (
+        allowedCodes.includes(
+          code
+        )
+      ) {
+
+        group.classList.add(
+          "map-country"
+        );
+
+        group.dataset.countryCode =
+          code;
+
+      } else {
+
+        group.classList.add(
+          "map-country-disabled"
+        );
+      }
+    });
+
 
   createMapHitAreas(
     svg,
     allowedCodes
   );
 
-  setInitialEuropeView(svg);
+
+  setInitialEuropeView(
+    svg
+  );
 }
 
-/* ======================================================
-   CADRAGE INITIAL EUROPE
-====================================================== */
+
+// ============================================================
+// CADRAGE EUROPE
+// ============================================================
 
 function setInitialEuropeView(svg) {
-  /*
-    Ce SVG mondial utilise :
-    viewBox="0 0 1000 507.209"
-
-    Ce cadrage affiche l'Europe
-    de l'Islande jusqu'à la Turquie,
-    sans montrer inutilement le reste
-    du monde.
-  */
 
   const viewBox = {
+
     x: 430,
     y: 55,
     width: 235,
     height: 205
+
   };
+
 
   mapOriginalViewBox = {
     ...viewBox
   };
 
+
   mapCurrentViewBox = {
     ...viewBox
   };
 
+
   applyMapViewBox(svg);
 }
 
-/* ======================================================
-   ZONES DE CLIC PETITS PAYS
-====================================================== */
+
+// ============================================================
+// PETITS PAYS
+// ============================================================
 
 function createMapHitAreas(
   svg,
   allowedCodes
 ) {
+
   const namespace =
     "http://www.w3.org/2000/svg";
+
 
   const overlay =
     document.createElementNS(
@@ -946,10 +3465,12 @@ function createMapHitAreas(
       "g"
     );
 
+
   overlay.setAttribute(
     "id",
     "map-hit-areas"
   );
+
 
   const smallCodes = [
     "AD",
@@ -961,37 +3482,54 @@ function createMapHitAreas(
     "XK"
   ];
 
+
   smallCodes.forEach(code => {
+
     if (
-      !allowedCodes.includes(code)
+      !allowedCodes.includes(
+        code
+      )
     ) {
       return;
     }
+
 
     const country =
       svg.querySelector(
         `g[id="${code}"]`
       );
 
-    if (!country) return;
+
+    if (!country) {
+      return;
+    }
+
 
     try {
+
       const box =
         country.getBBox();
 
+
       const centerX =
-        box.x + box.width / 2;
+        box.x +
+        box.width / 2;
+
 
       const centerY =
-        box.y + box.height / 2;
+        box.y +
+        box.height / 2;
+
 
       const size = 8;
+
 
       const hit =
         document.createElementNS(
           namespace,
           "rect"
         );
+
 
       hit.setAttribute(
         "x",
@@ -1018,131 +3556,375 @@ function createMapHitAreas(
         "map-small-hit"
       );
 
+
       hit.dataset.countryCode =
         code;
 
-      overlay.appendChild(hit);
+
+      overlay.appendChild(
+        hit
+      );
+
 
     } catch (error) {
+
       console.warn(
-        "Zone de clic impossible :",
+        "Impossible d'ajouter la zone :",
         code
       );
     }
   });
 
-  svg.appendChild(overlay);
+
+  svg.appendChild(
+    overlay
+  );
 }
 
-/* ======================================================
-   NAVIGATION CARTE
-====================================================== */
+
+// ============================================================
+// CLICS CARTE
+// ============================================================
+
+function setupMapClicks(
+  svg,
+  correctCode,
+  mode
+) {
+
+  const normalizedCorrect =
+    String(
+      correctCode
+    ).toUpperCase();
+
+
+  const clickable =
+    svg.querySelectorAll(
+      ".map-country, .map-small-hit"
+    );
+
+
+  clickable.forEach(element => {
+
+    element.addEventListener(
+      "click",
+      event => {
+
+        if (
+          svg.dataset.ignoreMapClick ===
+          "true"
+        ) {
+          return;
+        }
+
+
+        event.stopPropagation();
+
+
+        const clickedCode =
+          String(
+            element.dataset.countryCode ||
+            element.id
+          ).toUpperCase();
+
+
+        handleMapAnswer(
+          svg,
+          clickedCode,
+          normalizedCorrect,
+          mode
+        );
+      }
+    );
+  });
+}
+
+
+// ============================================================
+// RÉPONSE CARTE
+// ============================================================
+
+function handleMapAnswer(
+  svg,
+  clickedCode,
+  correctCode,
+  mode
+) {
+
+  const feedback =
+    document.getElementById(
+      "map-feedback"
+    );
+
+
+  const clickedCountry =
+    svg.querySelector(
+      `g[id="${clickedCode}"]`
+    );
+
+
+  const correctCountry =
+    svg.querySelector(
+      `g[id="${correctCode}"]`
+    );
+
+
+  svg
+    .querySelectorAll(
+      ".map-country, .map-small-hit"
+    )
+    .forEach(element => {
+
+      element.style.pointerEvents =
+        "none";
+    });
+
+
+  if (
+    clickedCode ===
+    correctCode
+  ) {
+
+    if (clickedCountry) {
+
+      clickedCountry.classList.add(
+        "map-country-correct"
+      );
+    }
+
+
+    feedback.classList.remove(
+      "hidden"
+    );
+
+    feedback.textContent =
+      "✅ Correct !";
+
+    feedback.style.color =
+      "#15803d";
+
+
+    if (
+      mode === "test"
+    ) {
+
+      testScore++;
+    }
+
+
+  } else {
+
+    if (clickedCountry) {
+
+      clickedCountry.classList.add(
+        "map-country-wrong"
+      );
+    }
+
+
+    if (correctCountry) {
+
+      correctCountry.classList.add(
+        "map-country-correct"
+      );
+    }
+
+
+    feedback.classList.remove(
+      "hidden"
+    );
+
+    feedback.textContent =
+      "❌ Ce n’était pas ce pays.";
+
+    feedback.style.color =
+      "#b91c1c";
+
+
+    if (
+      mode === "review"
+    ) {
+
+      reviewQuestions.push(
+        reviewQuestions[
+          currentQuestionIndex
+        ]
+      );
+    }
+  }
+
+
+  setTimeout(
+    () => {
+
+      if (
+        mode === "review"
+      ) {
+
+        currentQuestionIndex++;
+
+        showMapReviewQuestion();
+
+      } else {
+
+        currentTestIndex++;
+
+        showMapTestQuestion();
+      }
+
+    },
+    1100
+  );
+}
+
+
+// ============================================================
+// NAVIGATION CARTE
+// ============================================================
 
 function setupMapNavigation(svg) {
+
   setupMapZoom(svg);
+
   setupMapPan(svg);
+
   setupMouseWheelZoom(svg);
 }
 
-/* ======================================================
-   ZOOM BOUTONS
-====================================================== */
+
+// ============================================================
+// BOUTONS ZOOM
+// ============================================================
 
 function setupMapZoom(svg) {
+
   const zoomIn =
     document.getElementById(
       "map-zoom-in"
     );
+
 
   const zoomOut =
     document.getElementById(
       "map-zoom-out"
     );
 
+
   const reset =
     document.getElementById(
       "map-reset"
     );
 
-  if (zoomIn) {
-    zoomIn.addEventListener(
-      "click",
-      () => {
-        zoomMap(
-          svg,
-          0.80
-        );
-      }
-    );
-  }
 
-  if (zoomOut) {
-    zoomOut.addEventListener(
-      "click",
-      () => {
-        zoomMap(
-          svg,
-          1.25
-        );
-      }
-    );
-  }
+  zoomIn?.addEventListener(
+    "click",
+    () =>
+      zoomMap(
+        svg,
+        0.8
+      )
+  );
 
-  if (reset) {
-    reset.addEventListener(
-      "click",
-      () => {
-        if (
-          !mapOriginalViewBox
-        ) {
-          return;
-        }
 
-        mapCurrentViewBox = {
-          ...mapOriginalViewBox
-        };
+  zoomOut?.addEventListener(
+    "click",
+    () =>
+      zoomMap(
+        svg,
+        1.25
+      )
+  );
 
-        applyMapViewBox(svg);
-      }
-    );
-  }
+
+  reset?.addEventListener(
+    "click",
+    () => {
+
+      mapCurrentViewBox = {
+        ...mapOriginalViewBox
+      };
+
+      applyMapViewBox(svg);
+    }
+  );
 }
 
-/* ======================================================
-   ZOOM
-====================================================== */
+
+// ============================================================
+// MOLETTE
+// ============================================================
+
+function setupMouseWheelZoom(svg) {
+
+  svg.addEventListener(
+    "wheel",
+    event => {
+
+      event.preventDefault();
+
+
+      if (
+        event.deltaY < 0
+      ) {
+
+        zoomMap(
+          svg,
+          0.9
+        );
+
+      } else {
+
+        zoomMap(
+          svg,
+          1.1
+        );
+      }
+
+    },
+    {
+      passive: false
+    }
+  );
+}
+
+
+// ============================================================
+// ZOOM CARTE
+// ============================================================
 
 function zoomMap(
   svg,
   factor
 ) {
+
   if (!mapCurrentViewBox) {
     return;
   }
+
 
   const centerX =
     mapCurrentViewBox.x +
     mapCurrentViewBox.width / 2;
 
+
   const centerY =
     mapCurrentViewBox.y +
     mapCurrentViewBox.height / 2;
+
 
   const newWidth =
     mapCurrentViewBox.width *
     factor;
 
+
   const newHeight =
     mapCurrentViewBox.height *
     factor;
 
-  const minWidth =
-    mapOriginalViewBox.width *
-    0.28;
 
-  const maxWidth =
-    mapOriginalViewBox.width *
-    1.30;
+  const minWidth = 80;
+  const maxWidth = 360;
+
 
   if (
     newWidth < minWidth ||
@@ -1151,7 +3933,9 @@ function zoomMap(
     return;
   }
 
+
   mapCurrentViewBox = {
+
     x:
       centerX -
       newWidth / 2,
@@ -1167,16 +3951,19 @@ function zoomMap(
       newHeight
   };
 
+
   clampMapViewBox();
 
   applyMapViewBox(svg);
 }
 
-/* ======================================================
-   DÉPLACEMENT SOURIS / DOIGT
-====================================================== */
+
+// ============================================================
+// PAN / DRAG
+// ============================================================
 
 function setupMapPan(svg) {
+
   let pointerDown = false;
   let dragging = false;
 
@@ -1187,12 +3974,15 @@ function setupMapPan(svg) {
 
   let activePointerId = null;
 
+
   svg.addEventListener(
     "pointerdown",
     event => {
+
       if (!mapCurrentViewBox) {
         return;
       }
+
 
       pointerDown = true;
       dragging = false;
@@ -1212,64 +4002,71 @@ function setupMapPan(svg) {
     }
   );
 
+
   svg.addEventListener(
     "pointermove",
     event => {
+
       if (
         !pointerDown ||
-        event.pointerId !== activePointerId ||
+        event.pointerId !==
+          activePointerId ||
         !startViewBox
       ) {
         return;
       }
 
+
       const deltaPixelsX =
-        event.clientX - startX;
+        event.clientX -
+        startX;
+
 
       const deltaPixelsY =
-        event.clientY - startY;
+        event.clientY -
+        startY;
 
-      /*
-        On ne considère pas immédiatement
-        le mouvement comme un déplacement.
-
-        Cela permet à un simple clic
-        sur un pays de fonctionner normalement.
-      */
 
       if (
         !dragging &&
         (
-          Math.abs(deltaPixelsX) > 6 ||
-          Math.abs(deltaPixelsY) > 6
+          Math.abs(
+            deltaPixelsX
+          ) > 6 ||
+          Math.abs(
+            deltaPixelsY
+          ) > 6
         )
       ) {
+
         dragging = true;
 
         svg.classList.add(
           "map-dragging"
         );
 
-        /*
-          On capture le pointeur uniquement
-          APRÈS avoir détecté un vrai déplacement.
-        */
 
         try {
+
           svg.setPointerCapture(
             event.pointerId
           );
+
         } catch (error) {}
       }
+
 
       if (!dragging) {
         return;
       }
 
+
       event.preventDefault();
+
 
       const rect =
         svg.getBoundingClientRect();
+
 
       if (
         rect.width === 0 ||
@@ -1278,12 +4075,14 @@ function setupMapPan(svg) {
         return;
       }
 
+
       const deltaMapX =
         deltaPixelsX *
         (
           startViewBox.width /
           rect.width
         );
+
 
       const deltaMapY =
         deltaPixelsY *
@@ -1292,7 +4091,9 @@ function setupMapPan(svg) {
           rect.height
         );
 
+
       mapCurrentViewBox = {
+
         x:
           startViewBox.x -
           deltaMapX,
@@ -1308,14 +4109,17 @@ function setupMapPan(svg) {
           startViewBox.height
       };
 
+
       clampMapViewBox();
 
       applyMapViewBox(svg);
     }
   );
 
+
   const finishPointer =
     event => {
+
       if (
         event.pointerId !==
         activePointerId
@@ -1323,48 +4127,60 @@ function setupMapPan(svg) {
         return;
       }
 
+
       if (dragging) {
-        /*
-          Empêche seulement le clic généré
-          juste après un vrai déplacement.
-        */
 
         svg.dataset.ignoreMapClick =
           "true";
 
-        setTimeout(() => {
-          svg.dataset.ignoreMapClick =
-            "false";
-        }, 100);
+
+        setTimeout(
+          () => {
+
+            svg.dataset.ignoreMapClick =
+              "false";
+
+          },
+          100
+        );
       }
 
+
       try {
+
         if (
           svg.hasPointerCapture &&
           svg.hasPointerCapture(
             event.pointerId
           )
         ) {
+
           svg.releasePointerCapture(
             event.pointerId
           );
         }
+
       } catch (error) {}
+
 
       pointerDown = false;
       dragging = false;
+
       activePointerId = null;
       startViewBox = null;
+
 
       svg.classList.remove(
         "map-dragging"
       );
     };
 
+
   svg.addEventListener(
     "pointerup",
     finishPointer
   );
+
 
   svg.addEventListener(
     "pointercancel",
@@ -1372,141 +4188,17 @@ function setupMapPan(svg) {
   );
 }
 
-/* ======================================================
-   ZOOM MOLETTE
-====================================================== */
 
-function setupMouseWheelZoom(svg) {
-  svg.addEventListener(
-    "wheel",
-    event => {
-
-      event.preventDefault();
-
-      const factor =
-        event.deltaY < 0
-          ? 0.88
-          : 1.12;
-
-      zoomMapAtPointer(
-        svg,
-        factor,
-        event.clientX,
-        event.clientY
-      );
-
-    },
-    {
-      passive: false
-    }
-  );
-}
-
-function zoomMapAtPointer(
-  svg,
-  factor,
-  clientX,
-  clientY
-) {
-  if (!mapCurrentViewBox) {
-    return;
-  }
-
-  const rect =
-    svg.getBoundingClientRect();
-
-  if (
-    rect.width === 0 ||
-    rect.height === 0
-  ) {
-    return;
-  }
-
-  const mouseRatioX =
-    (
-      clientX -
-      rect.left
-    ) /
-    rect.width;
-
-  const mouseRatioY =
-    (
-      clientY -
-      rect.top
-    ) /
-    rect.height;
-
-  const mapX =
-    mapCurrentViewBox.x +
-    mouseRatioX *
-    mapCurrentViewBox.width;
-
-  const mapY =
-    mapCurrentViewBox.y +
-    mouseRatioY *
-    mapCurrentViewBox.height;
-
-  const newWidth =
-    mapCurrentViewBox.width *
-    factor;
-
-  const newHeight =
-    mapCurrentViewBox.height *
-    factor;
-
-  const minWidth =
-    mapOriginalViewBox.width *
-    0.28;
-
-  const maxWidth =
-    mapOriginalViewBox.width *
-    1.30;
-
-  if (
-    newWidth < minWidth ||
-    newWidth > maxWidth
-  ) {
-    return;
-  }
-
-  mapCurrentViewBox = {
-    x:
-      mapX -
-      mouseRatioX *
-      newWidth,
-
-    y:
-      mapY -
-      mouseRatioY *
-      newHeight,
-
-    width:
-      newWidth,
-
-    height:
-      newHeight
-  };
-
-  clampMapViewBox();
-
-  applyMapViewBox(svg);
-}
-
-/* ======================================================
-   LIMITES DE DÉPLACEMENT
-====================================================== */
+// ============================================================
+// LIMITES CARTE
+// ============================================================
 
 function clampMapViewBox() {
+
   if (!mapCurrentViewBox) {
     return;
   }
 
-  /*
-    Limites plus larges que l'Europe
-    pour permettre d'aller chercher :
-    Russie, Turquie, Géorgie,
-    Islande, etc.
-  */
 
   const minX = 360;
   const maxX = 760;
@@ -1514,1334 +4206,186 @@ function clampMapViewBox() {
   const minY = 20;
   const maxY = 315;
 
+
   if (
     mapCurrentViewBox.x <
     minX
   ) {
+
     mapCurrentViewBox.x =
       minX;
   }
+
 
   if (
     mapCurrentViewBox.y <
     minY
   ) {
+
     mapCurrentViewBox.y =
       minY;
   }
+
 
   if (
     mapCurrentViewBox.x +
       mapCurrentViewBox.width >
     maxX
   ) {
+
     mapCurrentViewBox.x =
       maxX -
       mapCurrentViewBox.width;
   }
+
 
   if (
     mapCurrentViewBox.y +
       mapCurrentViewBox.height >
     maxY
   ) {
+
     mapCurrentViewBox.y =
       maxY -
       mapCurrentViewBox.height;
   }
 }
 
-/* ======================================================
-   APPLICATION DU VIEWBOX
-====================================================== */
+
+// ============================================================
+// APPLIQUER VIEWBOX
+// ============================================================
 
 function applyMapViewBox(svg) {
+
   if (!mapCurrentViewBox) {
     return;
   }
 
+
   svg.setAttribute(
     "viewBox",
-    `${mapCurrentViewBox.x} ${mapCurrentViewBox.y} ${mapCurrentViewBox.width} ${mapCurrentViewBox.height}`
+    `
+      ${mapCurrentViewBox.x}
+      ${mapCurrentViewBox.y}
+      ${mapCurrentViewBox.width}
+      ${mapCurrentViewBox.height}
+    `
   );
 }
 
-/* ======================================================
-   CLIC SUR PAYS
-====================================================== */
 
-function setupMapClicks(
-  svg,
-  correctCode,
-  mode
-) {
-  let answered = false;
-
-  const normalizedCorrect =
-    String(
-      correctCode
-    ).toUpperCase();
-
-  const clickable =
-    svg.querySelectorAll(
-      ".map-country, .map-small-hit"
-    );
-
-  clickable.forEach(element => {
-
-    element.addEventListener(
-      "click",
-      event => {
-
-        event.stopPropagation();
-
-        if (
-          svg.dataset.ignoreMapClick ===
-          "true"
-        ) {
-          return;
-        }
-
-        if (answered) {
-          return;
-        }
-
-        const selectedCode =
-          element.dataset.countryCode ||
-          findCountryCodeFromElement(
-            element
-          );
-
-        if (!selectedCode) {
-          return;
-        }
-
-        answered = true;
-
-        const isCorrect =
-          selectedCode ===
-          normalizedCorrect;
-
-        highlightMapCountry(
-          svg,
-          selectedCode,
-          isCorrect
-            ? "correct"
-            : "wrong"
-        );
-
-        if (!isCorrect) {
-          highlightMapCountry(
-            svg,
-            normalizedCorrect,
-            "correct"
-          );
-        }
-
-        showMapAnswerFeedback(
-          isCorrect,
-          mode
-        );
-      }
-    );
-  });
-}
-
-function findCountryCodeFromElement(
-  element
-) {
-  let current =
-    element;
-
-  while (current) {
-
-    if (
-      current.tagName &&
-      current.tagName
-        .toLowerCase() ===
-      "g" &&
-      current.id
-    ) {
-      return current.id
-        .toUpperCase();
-    }
-
-    current =
-      current.parentElement;
-  }
-
-  return null;
-}
-
-/* ======================================================
-   COULEURS RÉPONSES
-====================================================== */
-
-function highlightMapCountry(
-  svg,
-  code,
-  type
-) {
-  const group =
-    svg.querySelector(
-      `g[id="${code}"]`
-    );
-
-  if (!group) {
-    return;
-  }
-
-  if (
-    type === "correct"
-  ) {
-    group.classList.add(
-      "map-country-correct"
-    );
-  }
-
-  if (
-    type === "wrong"
-  ) {
-    group.classList.add(
-      "map-country-wrong"
-    );
-  }
-}
-
-/* ======================================================
-   FEEDBACK
-====================================================== */
-
-function showMapAnswerFeedback(
-  isCorrect,
-  mode
-) {
-  const feedback =
-    document.getElementById(
-      "map-feedback"
-    );
-
-  if (!feedback) {
-    return;
-  }
-
-  feedback.classList.remove(
-    "hidden"
-  );
-
-  if (isCorrect) {
-    feedback.innerHTML = `
-      <div class="qcm-feedback-title correct">
-        ✓ Bonne réponse
-      </div>
-    `;
-  } else {
-    feedback.innerHTML = `
-      <div class="qcm-feedback-title wrong">
-        ✕ Mauvais pays
-      </div>
-    `;
-  }
-
-  if (
-    mode === "test" &&
-    isCorrect
-  ) {
-    testScore++;
-  }
-
-  if (
-    mode === "review" &&
-    !isCorrect
-  ) {
-    const missed =
-      reviewQuestions[
-        currentQuestionIndex
-      ];
-
-    reviewQuestions.push(
-      missed
-    );
-  }
-
-  const nextButton =
-    document.createElement(
-      "button"
-    );
-
-  nextButton.className =
-    "qcm-next-button";
-
-  if (
-    mode === "review"
-  ) {
-
-    nextButton.textContent =
-      "Pays suivant →";
-
-    nextButton.addEventListener(
-      "click",
-      () => {
-        currentQuestionIndex++;
-        showMapReviewQuestion();
-      }
-    );
-
-  } else {
-
-    nextButton.textContent =
-      currentTestIndex + 1 ===
-      testQuestions.length
-        ? "Voir mon résultat"
-        : "Question suivante →";
-
-    nextButton.addEventListener(
-      "click",
-      () => {
-        currentTestIndex++;
-        showMapTestQuestion();
-      }
-    );
-  }
-
-  feedback.appendChild(
-    nextButton
-  );
-}
-
-function showReviewFinished() {
-  title.textContent = "Bravo !";
-  subtitle.textContent = "Révision terminée";
-
-  container.innerHTML = "";
-
-  const box =
-    document.createElement("div");
-
-  box.className = "review-box";
-
-  box.innerHTML = `
-    <div class="finish-icon">
-      🎉
-    </div>
-
-    <h2>
-      Révision terminée
-    </h2>
-
-    <button
-      id="restart-review"
-      class="main-button"
-    >
-      Nouvelle révision
-    </button>
-
-    <button
-      id="back-chapter"
-      class="secondary-button"
-    >
-      Retour au chapitre
-    </button>
-  `;
-
-  container.appendChild(box);
-
-  document
-    .getElementById(
-      "restart-review"
-    )
-    .addEventListener(
-      "click",
-      () => {
-        if (
-          currentChapter.content_type ===
-          "flags"
-        ) {
-          startFlagReview(
-            currentChapter
-          );
-
-        } else if (
-          currentChapter.content_type ===
-          "map"
-        ) {
-          startMapReview(
-            currentChapter
-          );
-
-        } else if (
-          currentChapter.direction_mode ===
-          "single"
-        ) {
-          startReview(
-            currentChapter,
-            "forward"
-          );
-
-        } else {
-          showReviewDirection();
-        }
-      }
-    );
-
-  document
-    .getElementById(
-      "back-chapter"
-    )
-    .addEventListener(
-      "click",
-      () => {
-        showModes(
-          currentChapter
-        );
-      }
-    );
-}
-
-/* ======================================================
-   TEST TEXTE
-====================================================== */
-
-async function startTest(
-  chapter,
-  direction
-) {
-  title.textContent =
-    chapter.name;
-
-  subtitle.textContent =
-    "Mode Test";
-
-  container.innerHTML =
-    "<p>Chargement du test...</p>";
-
-  const data =
-    await loadCards(chapter);
-
-  if (!data) return;
-
-  if (
-    chapter.test_mode ===
-    "qcm"
-  ) {
-    testQuestions =
-      buildQcmQuestions(data);
-  } else {
-    testQuestions =
-      buildQuestions(
-        data,
-        direction
-      );
-  }
-
-  shuffleArray(
-    testQuestions
-  );
-
-  testQuestions =
-    testQuestions.slice(
-      0,
-      20
-    );
-
-  currentTestIndex = 0;
-  testScore = 0;
-
-  if (
-    chapter.test_mode ===
-    "qcm"
-  ) {
-    showQcmQuestion();
-  } else {
-    showWrittenTestQuestion();
-  }
-}
-
-/* ======================================================
-   TEST DRAPEAUX
-====================================================== */
-
-async function startFlagTest(
-  chapter
-) {
-  title.textContent =
-    chapter.name;
-
-  subtitle.textContent =
-    "Pays → Drapeau";
-
-  container.innerHTML =
-    "<p>Chargement du test...</p>";
-
-  const data =
-    await loadCards(chapter);
-
-  if (!data) return;
-
-  const allFlags =
-    data.filter(
-      card =>
-        card.image_url
-    );
-
-  testQuestions = [
-    ...allFlags
-  ];
-
-  shuffleArray(
-    testQuestions
-  );
-
-  testQuestions =
-    testQuestions.slice(
-      0,
-      20
-    );
-
-  currentTestIndex = 0;
-  testScore = 0;
-
-  showFlagTestQuestion(
-    allFlags
-  );
-}
-
-function showFlagTestQuestion(
-  allFlags
-) {
-  if (
-    currentTestIndex >=
-    testQuestions.length
-  ) {
-    showTestFinished();
-    return;
-  }
-
-  const current =
-    testQuestions[
-      currentTestIndex
-    ];
-
-  title.textContent =
-    currentChapter.name;
-
-  subtitle.textContent =
-    "Pays → Drapeau";
-
-  container.innerHTML = "";
-
-  const box =
-    document.createElement("div");
-
-  box.className =
-    "qcm-card";
-
-  const distractors =
-    allFlags.filter(
-      card =>
-        card.id !==
-        current.id
-    );
-
-  shuffleArray(
-    distractors
-  );
-
-  const choices = [
-    current,
-    ...distractors.slice(
-      0,
-      3
-    )
-  ];
-
-  shuffleArray(
-    choices
-  );
-
-  const progress =
-    ((currentTestIndex + 1) /
-      testQuestions.length) *
-    100;
-
-  let choicesHtml = "";
-
-  choices.forEach(
-    choice => {
-      choicesHtml += `
-        <button
-          class="flag-choice-button"
-          data-id="${choice.id}"
-        >
-          <img
-            src="${choice.image_url}"
-            alt="Drapeau"
-            class="flag-choice-image"
-          />
-        </button>
-      `;
-    }
-  );
-
-  box.innerHTML = `
-    <div class="qcm-topbar">
-
-      <div class="qcm-counter">
-        Question ${currentTestIndex + 1}
-        <span>
-          sur ${testQuestions.length}
-        </span>
-      </div>
-
-      <div class="qcm-score">
-        ⭐ ${testScore}
-      </div>
-
-    </div>
-
-    <div class="qcm-progress">
-      <div
-        class="qcm-progress-bar"
-        style="width: ${progress}%"
-      ></div>
-    </div>
-
-    <div class="flag-test-title">
-      Quel est le drapeau de :
-    </div>
-
-    <div class="flag-country-name">
-      ${current.answer}
-    </div>
-
-    <div class="flag-qcm-grid">
-      ${choicesHtml}
-    </div>
-
-    <div
-      id="qcm-feedback"
-      class="qcm-feedback hidden"
-    ></div>
-
-    <button
-      id="quit-test"
-      class="qcm-back-button"
-    >
-      ← Quitter le test
-    </button>
-  `;
-
-  container.appendChild(box);
-
-  document
-    .querySelectorAll(
-      ".flag-choice-button"
-    )
-    .forEach(button => {
-      button.addEventListener(
-        "click",
-        () => {
-          validateFlagAnswer(
-            button,
-            current,
-            allFlags
-          );
-        }
-      );
-    });
-
-  document
-    .getElementById(
-      "quit-test"
-    )
-    .addEventListener(
-      "click",
-      () => {
-        showModes(
-          currentChapter
-        );
-      }
-    );
-}
-
-function validateFlagAnswer(
-  button,
-  current,
-  allFlags
-) {
-  const selectedId =
-    String(
-      button.dataset.id
-    );
-
-  const correctId =
-    String(current.id);
-
-  const buttons =
-    document.querySelectorAll(
-      ".flag-choice-button"
-    );
-
-  buttons.forEach(btn => {
-    btn.disabled = true;
-
-    if (
-      String(
-        btn.dataset.id
-      ) ===
-      correctId
-    ) {
-      btn.classList.add(
-        "flag-choice-correct"
-      );
-    }
-  });
-
-  const feedback =
-    document.getElementById(
-      "qcm-feedback"
-    );
-
-  if (
-    selectedId ===
-    correctId
-  ) {
-    testScore++;
-
-    feedback.innerHTML = `
-      <div class="qcm-feedback-title correct">
-        ✓ Bonne réponse
-      </div>
-    `;
-
-  } else {
-    button.classList.add(
-      "flag-choice-wrong"
-    );
-
-    feedback.innerHTML = `
-      <div class="qcm-feedback-title wrong">
-        ✕ Mauvaise réponse
-      </div>
-    `;
-  }
-
-  feedback.classList.remove(
-    "hidden"
-  );
-
-  const nextButton =
-    document.createElement(
-      "button"
-    );
-
-  nextButton.className =
-    "qcm-next-button";
-
-  nextButton.textContent =
-    currentTestIndex + 1 ===
-    testQuestions.length
-      ? "Voir mon résultat"
-      : "Question suivante →";
-
-  nextButton.addEventListener(
-    "click",
-    () => {
-      currentTestIndex++;
-
-      showFlagTestQuestion(
-        allFlags
-      );
-    }
-  );
-
-  feedback.appendChild(
-    nextButton
-  );
-}
-
-/* ======================================================
-   TEST ÉCRIT
-====================================================== */
-
-function showWrittenTestQuestion() {
-  if (
-    currentTestIndex >=
-    testQuestions.length
-  ) {
-    showTestFinished();
-    return;
-  }
-
-  const current =
-    testQuestions[
-      currentTestIndex
-    ];
-
-  title.textContent =
-    currentChapter.name;
-
-  subtitle.textContent =
-    `Question ${currentTestIndex + 1} sur ${testQuestions.length} • Score ${testScore}`;
-
-  container.innerHTML = "";
-
-  const box =
-    document.createElement("div");
-
-  box.className =
-    "review-box";
-
-  box.innerHTML = `
-    <div class="review-question">
-      ${current.question}
-    </div>
-
-    <input
-      id="test-answer"
-      class="test-input"
-      type="text"
-      placeholder="Écris ta réponse"
-      autocomplete="off"
-    />
-
-    <button
-      id="validate-test"
-      class="main-button"
-    >
-      Valider
-    </button>
-
-    <div
-      id="test-feedback"
-      class="test-feedback hidden"
-    ></div>
-
-    <button
-      id="quit-test"
-      class="secondary-button review-back-button"
-    >
-      ← Retour
-    </button>
-  `;
-
-  container.appendChild(box);
-
-  const input =
-    document.getElementById(
-      "test-answer"
-    );
-
-  input.focus();
-
-  document
-    .getElementById(
-      "validate-test"
-    )
-    .addEventListener(
-      "click",
-      validateWrittenTestAnswer
-    );
-
-  document
-    .getElementById(
-      "quit-test"
-    )
-    .addEventListener(
-      "click",
-      () => {
-        if (
-          currentChapter.direction_mode ===
-          "single"
-        ) {
-          showModes(
-            currentChapter
-          );
-        } else {
-          showTestDirection();
-        }
-      }
-    );
-
-  input.addEventListener(
-    "keydown",
-    event => {
-      if (
-        event.key === "Enter"
-      ) {
-        validateWrittenTestAnswer();
-      }
-    }
-  );
-}
-
-function validateWrittenTestAnswer() {
-  const input =
-    document.getElementById(
-      "test-answer"
-    );
-
-  const button =
-    document.getElementById(
-      "validate-test"
-    );
-
-  const feedback =
-    document.getElementById(
-      "test-feedback"
-    );
-
-  const userAnswer =
-    input.value.trim();
-
-  if (!userAnswer) return;
-
-  const current =
-    testQuestions[
-      currentTestIndex
-    ];
-
-  const isCorrect =
-    normalizeAnswer(
-      userAnswer
-    ) ===
-    normalizeAnswer(
-      current.answer
-    );
-
-  input.disabled = true;
-  button.disabled = true;
-
-  feedback.classList.remove(
-    "hidden"
-  );
-
-  if (isCorrect) {
-    testScore++;
-
-    feedback.innerHTML = `
-      <div class="test-correct">
-        ✅ Bonne réponse !
-      </div>
-    `;
-  } else {
-    feedback.innerHTML = `
-      <div class="test-wrong">
-        ❌ Mauvaise réponse
-      </div>
-
-      <div class="test-correction">
-        Bonne réponse :
-        <strong>
-          ${current.answer}
-        </strong>
-      </div>
-    `;
-  }
-
-  addNextTestButton(
-    feedback,
-    showWrittenTestQuestion
-  );
-}
-
-/* ======================================================
-   QCM TEXTE
-====================================================== */
-
-function buildQcmQuestions(
-  data
-) {
-  const questions = [];
-
-  data.forEach(card => {
-    if (
-      card.wrong_answer_1 &&
-      card.wrong_answer_2 &&
-      card.wrong_answer_3
-    ) {
-      questions.push({
-        question:
-          card.question,
-
-        answer:
-          card.answer,
-
-        choices: [
-          card.answer,
-          card.wrong_answer_1,
-          card.wrong_answer_2,
-          card.wrong_answer_3
-        ]
-      });
-    }
-  });
-
-  return questions;
-}
-
-function showQcmQuestion() {
-  if (
-    currentTestIndex >=
-    testQuestions.length
-  ) {
-    showTestFinished();
-    return;
-  }
-
-  const current =
-    testQuestions[
-      currentTestIndex
-    ];
-
-  title.textContent =
-    currentChapter.name;
-
-  subtitle.textContent =
-    "Mode Test";
-
-  container.innerHTML = "";
-
-  const box =
-    document.createElement(
-      "div"
-    );
-
-  box.className =
-    "qcm-card";
-
-  const choices = [
-    ...current.choices
-  ];
-
-  shuffleArray(
-    choices
-  );
-
-  const letters = [
-    "A",
-    "B",
-    "C",
-    "D"
-  ];
-
-  let choicesHtml = "";
-
-  choices.forEach(
-    (choice, index) => {
-      choicesHtml += `
-        <button
-          class="qcm-button"
-          data-answer="${escapeHtmlAttribute(choice)}"
-        >
-          <span class="qcm-letter">
-            ${letters[index]}
-          </span>
-
-          <span class="qcm-choice-text">
-            ${choice}
-          </span>
-        </button>
-      `;
-    }
-  );
-
-  const progress =
-    ((currentTestIndex + 1) /
-      testQuestions.length) *
-    100;
-
-  box.innerHTML = `
-    <div class="qcm-topbar">
-
-      <div class="qcm-counter">
-        Question ${currentTestIndex + 1}
-        <span>
-          sur ${testQuestions.length}
-        </span>
-      </div>
-
-      <div class="qcm-score">
-        ⭐ ${testScore}
-      </div>
-
-    </div>
-
-    <div class="qcm-progress">
-      <div
-        class="qcm-progress-bar"
-        style="width: ${progress}%"
-      ></div>
-    </div>
-
-    <div class="qcm-question">
-      ${current.question}
-    </div>
-
-    <div class="qcm-grid">
-      ${choicesHtml}
-    </div>
-
-    <div
-      id="qcm-feedback"
-      class="qcm-feedback hidden"
-    ></div>
-
-    <button
-      id="quit-test"
-      class="qcm-back-button"
-    >
-      ← Quitter le test
-    </button>
-  `;
-
-  container.appendChild(box);
-
-  document
-    .querySelectorAll(
-      ".qcm-button"
-    )
-    .forEach(button => {
-      button.addEventListener(
-        "click",
-        () => {
-          validateQcmAnswer(
-            button
-          );
-        }
-      );
-    });
-
-  document
-    .getElementById(
-      "quit-test"
-    )
-    .addEventListener(
-      "click",
-      () => {
-        showModes(
-          currentChapter
-        );
-      }
-    );
-}
-
-function validateQcmAnswer(
-  selectedButton
-) {
-  const current =
-    testQuestions[
-      currentTestIndex
-    ];
-
-  const selectedAnswer =
-    selectedButton.dataset.answer;
-
-  const feedback =
-    document.getElementById(
-      "qcm-feedback"
-    );
-
-  const buttons =
-    document.querySelectorAll(
-      ".qcm-button"
-    );
-
-  buttons.forEach(button => {
-    button.disabled = true;
-
-    if (
-      normalizeAnswer(
-        button.dataset.answer
-      ) ===
-      normalizeAnswer(
-        current.answer
-      )
-    ) {
-      button.classList.add(
-        "qcm-correct"
-      );
-    }
-  });
-
-  const isCorrect =
-    normalizeAnswer(
-      selectedAnswer
-    ) ===
-    normalizeAnswer(
-      current.answer
-    );
-
-  if (isCorrect) {
-    testScore++;
-
-    feedback.innerHTML = `
-      <div class="qcm-feedback-title correct">
-        ✓ Bonne réponse
-      </div>
-    `;
-
-  } else {
-    selectedButton.classList.add(
-      "qcm-wrong"
-    );
-
-    feedback.innerHTML = `
-      <div class="qcm-feedback-title wrong">
-        ✕ Pas tout à fait
-      </div>
-
-      <div class="qcm-feedback-answer">
-        Bonne réponse :
-        <strong>
-          ${current.answer}
-        </strong>
-      </div>
-    `;
-  }
-
-  feedback.classList.remove(
-    "hidden"
-  );
-
-  const nextButton =
-    document.createElement(
-      "button"
-    );
-
-  nextButton.className =
-    "qcm-next-button";
-
-  nextButton.textContent =
-    currentTestIndex + 1 ===
-    testQuestions.length
-      ? "Voir mon résultat"
-      : "Question suivante →";
-
-  nextButton.addEventListener(
-    "click",
-    () => {
-      currentTestIndex++;
-      showQcmQuestion();
-    }
-  );
-
-  feedback.appendChild(
-    nextButton
-  );
-}
-
-/* ======================================================
-   QUESTION SUIVANTE
-====================================================== */
-
-function addNextTestButton(
-  feedback,
-  nextFunction
-) {
-  const nextButton =
-    document.createElement(
-      "button"
-    );
-
-  nextButton.className =
-    "main-button test-next-button";
-
-  nextButton.textContent =
-    "Question suivante";
-
-  nextButton.addEventListener(
-    "click",
-    () => {
-      currentTestIndex++;
-      nextFunction();
-    }
-  );
-
-  feedback.appendChild(
-    nextButton
-  );
-}
-
-/* ======================================================
-   FIN TEST
-====================================================== */
+// ============================================================
+// FIN DU TEST
+// ============================================================
 
 function showTestFinished() {
+
   const total =
     testQuestions.length;
 
-  const percent =
+
+  const percentage =
     total > 0
       ? Math.round(
-          (testScore / total) *
+          (
+            testScore /
+            total
+          ) *
           100
         )
       : 0;
 
-  title.textContent =
-    "Test terminé";
-
-  subtitle.textContent =
-    currentChapter.name;
-
-  container.innerHTML = "";
-
-  const box =
-    document.createElement(
-      "div"
-    );
-
-  box.className =
-    "review-box";
 
   let message =
-    "Continue à t'entraîner 👍";
+    "Continue à t'entraîner 💪";
 
-  if (percent >= 90) {
+
+  if (
+    percentage >= 90
+  ) {
+
     message =
       "Excellent travail ! 🌟";
-  } else if (percent >= 75) {
+
+  } else if (
+    percentage >= 75
+  ) {
+
     message =
       "Très bon résultat ! 👏";
-  } else if (percent >= 60) {
+
+  } else if (
+    percentage >= 60
+  ) {
+
     message =
-      "Bien joué, encore un petit effort ! 💪";
+      "Bien joué ! 👍";
   }
 
-  box.innerHTML = `
-    <div class="finish-icon">
-      🎯
+
+  title.textContent =
+    currentChapter.name;
+
+
+  subtitle.textContent =
+    "Test terminé";
+
+
+  container.innerHTML = `
+
+    <div class="review-box">
+
+      <div
+        class="subject-icon"
+        style="font-size:60px;"
+      >
+        🎯
+      </div>
+
+
+      <div class="review-question">
+        ${testScore} / ${total}
+      </div>
+
+
+      <div
+        class="review-answer"
+        style="font-size:30px;"
+      >
+        ${percentage} %
+      </div>
+
+
+      <div
+        class="mode-description"
+        style="
+          font-size:18px;
+          margin-bottom:30px;
+        "
+      >
+        ${message}
+      </div>
+
+
+      <button
+        id="restart-test"
+        class="main-button"
+      >
+        Nouveau test
+      </button>
+
+
+      <button
+        id="test-back"
+        class="secondary-button"
+      >
+        Retour au chapitre
+      </button>
+
     </div>
-
-    <h2>
-      ${testScore} / ${total}
-    </h2>
-
-    <div class="test-percent">
-      ${percent} %
-    </div>
-
-    <div class="result-message">
-      ${message}
-    </div>
-
-    <button
-      id="restart-test"
-      class="main-button"
-    >
-      Refaire un test
-    </button>
-
-    <button
-      id="back-test"
-      class="secondary-button"
-    >
-      Retour au chapitre
-    </button>
   `;
 
-  container.appendChild(box);
 
   document
     .getElementById(
@@ -2852,210 +4396,125 @@ function showTestFinished() {
       () => {
 
         if (
-          currentChapter.content_type ===
+          currentChapter
+            .content_type ===
           "flags"
         ) {
+
           startFlagTest(
             currentChapter
           );
 
         } else if (
-          currentChapter.content_type ===
+          currentChapter
+            .content_type ===
           "map"
         ) {
+
           startMapTest(
             currentChapter
           );
 
         } else if (
-          currentChapter.direction_mode ===
-          "single"
+          currentChapter
+            .direction_mode ===
+          "bidirectional"
         ) {
+
+          showDirectionChoice(
+            "test"
+          );
+
+        } else {
+
           startTest(
             currentChapter,
             "forward"
           );
-
-        } else {
-          showTestDirection();
         }
       }
     );
 
+
   document
     .getElementById(
-      "back-test"
+      "test-back"
     )
     .addEventListener(
       "click",
-      () => {
+      () =>
         showModes(
           currentChapter
-        );
-      }
+        )
     );
 }
 
-/* ======================================================
-   DONNÉES
-====================================================== */
 
-async function loadCards(
-  chapter
-) {
-  const { data, error } =
-    await supabaseClient
-      .from("cards")
-      .select("*")
-      .eq(
-        "chapter_id",
-        chapter.id
-      )
-      .eq(
-        "active",
-        true
-      )
-      .order(
-        "sort_order"
-      );
-
-  if (error) {
-    console.error(error);
-
-    container.innerHTML =
-      "<p>Impossible de charger les questions.</p>";
-
-    return null;
-  }
-
-  if (
-    !data ||
-    data.length === 0
-  ) {
-    container.innerHTML =
-      "<p>Aucune question dans ce chapitre.</p>";
-
-    return null;
-  }
-
-  return data;
-}
-
-function buildQuestions(
-  data,
-  direction
-) {
-  const questions = [];
-
-  data.forEach(card => {
-    if (
-      direction === "forward" ||
-      direction === "both"
-    ) {
-      questions.push({
-        question:
-          card.question,
-
-        answer:
-          card.answer
-      });
-    }
-
-    if (
-      (
-        direction === "reverse" ||
-        direction === "both"
-      ) &&
-      card.reverse_question &&
-      card.reverse_answer
-    ) {
-      questions.push({
-        question:
-          card.reverse_question,
-
-        answer:
-          card.reverse_answer
-      });
-    }
-  });
-
-  return questions;
-}
-
-/* ======================================================
-   OUTILS
-====================================================== */
-
-function normalizeAnswer(
-  text
-) {
-  return text
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(
-      /[\u0300-\u036f]/g,
-      ""
-    )
-    .replace(
-      /[’']/g,
-      ""
-    )
-    .replace(
-      /[-]/g,
-      " "
-    )
-    .replace(
-      /\s+/g,
-      " "
-    )
-    .trim();
-}
+// ============================================================
+// BOUTON RETOUR
+// ============================================================
 
 function addBackButton(
-  action
+  callback
 ) {
-  const backButton =
-    document.createElement(
-      "div"
-    );
 
-  backButton.className =
-    "subject-card back-card";
+  const back =
+    document.createElement("div");
 
-  backButton.innerHTML = `
-    <div class="subject-icon">
-      ←
-    </div>
+  back.className =
+    "subject-card";
 
-    <div class="subject-name">
-      Retour
+  back.style.gridColumn =
+    "1 / -1";
+
+  back.style.padding =
+    "16px 20px";
+
+
+  back.innerHTML = `
+    <div
+      class="subject-name"
+      style="
+        font-size:17px;
+        text-align:left;
+      "
+    >
+      ← Retour
     </div>
   `;
 
-  backButton.addEventListener(
+
+  back.addEventListener(
     "click",
-    action
+    callback
   );
 
-  container.appendChild(
-    backButton
-  );
+
+  container.appendChild(back);
 }
 
-function shuffleArray(
-  array
-) {
+
+// ============================================================
+// MÉLANGE
+// ============================================================
+
+function shuffleArray(array) {
+
   for (
     let i =
       array.length - 1;
+
     i > 0;
+
     i--
   ) {
+
     const j =
       Math.floor(
         Math.random() *
         (i + 1)
       );
+
 
     [
       array[i],
@@ -3067,21 +4526,19 @@ function shuffleArray(
   }
 }
 
-function escapeHtmlAttribute(
-  text
-) {
-  return String(text)
+
+// ============================================================
+// SÉCURISER LE TEXTE HTML
+// ============================================================
+
+function escapeHtml(value) {
+
+  return String(
+    value ?? ""
+  )
     .replace(
       /&/g,
       "&amp;"
-    )
-    .replace(
-      /"/g,
-      "&quot;"
-    )
-    .replace(
-      /'/g,
-      "&#039;"
     )
     .replace(
       /</g,
@@ -3090,7 +4547,13 @@ function escapeHtmlAttribute(
     .replace(
       />/g,
       "&gt;"
+    )
+    .replace(
+      /"/g,
+      "&quot;"
+    )
+    .replace(
+      /'/g,
+      "&#039;"
     );
 }
-
-loadSubjects();
