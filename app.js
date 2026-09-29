@@ -41,16 +41,11 @@ let navigationStack = [];
 
 
 // ============================================================
-// REVISION
+// REVISION / TEST
 // ============================================================
 
 let reviewQuestions = [];
 let currentQuestionIndex = 0;
-
-
-// ============================================================
-// TEST
-// ============================================================
 
 let testQuestions = [];
 let currentTestIndex = 0;
@@ -107,16 +102,11 @@ async function loadSubjects() {
   container.innerHTML =
     "<p>Chargement...</p>";
 
-
   const { data, error } =
     await supabaseClient
       .from("subjects")
       .select("*")
-      .order(
-        "sort_order",
-        { ascending: true }
-      );
-
+      .order("sort_order");
 
   if (error) {
 
@@ -128,9 +118,7 @@ async function loadSubjects() {
     return;
   }
 
-
   container.innerHTML = "";
-
 
   data.forEach(subject => {
 
@@ -139,7 +127,6 @@ async function loadSubjects() {
 
     card.className =
       "subject-card";
-
 
     card.innerHTML = `
       <div class="subject-icon">
@@ -151,12 +138,10 @@ async function loadSubjects() {
       </div>
     `;
 
-
     card.addEventListener(
       "click",
       () => openSubject(subject)
     );
-
 
     container.appendChild(card);
   });
@@ -171,9 +156,7 @@ async function openSubject(subject) {
 
   currentSubject = subject;
   currentChapter = null;
-
   navigationStack = [];
-
 
   title.textContent =
     subject.name;
@@ -184,20 +167,12 @@ async function openSubject(subject) {
   container.innerHTML =
     "<p>Chargement...</p>";
 
-
   const { data, error } =
     await supabaseClient
       .from("chapters")
       .select("*")
-      .eq(
-        "subject_id",
-        subject.id
-      )
-      .order(
-        "sort_order",
-        { ascending: true }
-      );
-
+      .eq("subject_id", subject.id)
+      .order("sort_order");
 
   if (error) {
 
@@ -209,39 +184,31 @@ async function openSubject(subject) {
     return;
   }
 
-
   allSubjectChapters =
     data || [];
-
 
   renderChapterLevel(null);
 }
 
 
 // ============================================================
-// NAVIGATION ENTRE LES NIVEAUX
+// NAVIGATION CHAPITRES
 // ============================================================
 
 function renderChapterLevel(parentId) {
 
   container.innerHTML = "";
 
-
   const children =
     allSubjectChapters
       .filter(chapter => {
 
         if (parentId === null) {
-
-          return (
-            chapter.parent_chapter_id === null
-          );
+          return chapter.parent_chapter_id === null;
         }
 
         return (
-          Number(
-            chapter.parent_chapter_id
-          ) ===
+          Number(chapter.parent_chapter_id) ===
           Number(parentId)
         );
       })
@@ -251,10 +218,7 @@ function renderChapterLevel(parentId) {
           (b.sort_order || 0)
       );
 
-
-  if (
-    navigationStack.length === 0
-  ) {
+  if (navigationStack.length === 0) {
 
     title.textContent =
       currentSubject.name;
@@ -276,24 +240,16 @@ function renderChapterLevel(parentId) {
       "Choisis une partie";
   }
 
-
   addBackButton(() => {
 
-    if (
-      navigationStack.length === 0
-    ) {
-
+    if (navigationStack.length === 0) {
       loadSubjects();
       return;
     }
 
-
     navigationStack.pop();
 
-
-    if (
-      navigationStack.length === 0
-    ) {
+    if (navigationStack.length === 0) {
 
       renderChapterLevel(null);
 
@@ -304,16 +260,11 @@ function renderChapterLevel(parentId) {
           navigationStack.length - 1
         ];
 
-      renderChapterLevel(
-        parent.id
-      );
+      renderChapterLevel(parent.id);
     }
   });
 
-
-  if (
-    children.length === 0
-  ) {
+  if (children.length === 0) {
 
     const empty =
       document.createElement("div");
@@ -322,9 +273,7 @@ function renderChapterLevel(parentId) {
       "subject-card disabled-card";
 
     empty.innerHTML = `
-      <div class="subject-icon">
-        📭
-      </div>
+      <div class="subject-icon">📭</div>
 
       <div class="subject-name">
         Aucun contenu pour le moment
@@ -332,22 +281,17 @@ function renderChapterLevel(parentId) {
     `;
 
     container.appendChild(empty);
-
     return;
   }
-
 
   children.forEach(chapter => {
 
     const hasChildren =
       allSubjectChapters.some(
-        possibleChild =>
-          Number(
-            possibleChild.parent_chapter_id
-          ) ===
+        c =>
+          Number(c.parent_chapter_id) ===
           Number(chapter.id)
       );
-
 
     const card =
       document.createElement("div");
@@ -355,62 +299,9 @@ function renderChapterLevel(parentId) {
     card.className =
       "subject-card";
 
-
-    const icon =
-      getChapterIcon(
-        chapter,
-        hasChildren
-      );
-
-
-    let description = "";
-
-
-    if (hasChildren) {
-
-      description =
-        "Ouvrir";
-
-    } else if (
-      chapter.content_type === "map"
-    ) {
-
-      description =
-        "Carte interactive";
-
-    } else if (
-      chapter.content_type === "flags"
-    ) {
-
-      description =
-        "Drapeaux";
-
-    } else if (
-      chapter.content_type === "french_vocab"
-    ) {
-
-      description =
-        "Vocabulaire";
-
-    } else if (
-      chapter.test_mode === "qcm"
-    ) {
-
-      description =
-        "Révision + QCM";
-
-    } else if (
-      chapter.test_mode === "written"
-    ) {
-
-      description =
-        "Cartes + test écrit";
-    }
-
-
     card.innerHTML = `
       <div class="subject-icon">
-        ${icon}
+        ${getChapterIcon(chapter, hasChildren)}
       </div>
 
       <div class="subject-name">
@@ -418,16 +309,15 @@ function renderChapterLevel(parentId) {
       </div>
 
       ${
-        description
+        hasChildren
           ? `
             <div class="mode-description">
-              ${description}
+              Ouvrir
             </div>
           `
           : ""
       }
     `;
-
 
     card.addEventListener(
       "click",
@@ -435,9 +325,7 @@ function renderChapterLevel(parentId) {
 
         if (hasChildren) {
 
-          navigationStack.push(
-            chapter
-          );
+          navigationStack.push(chapter);
 
           renderChapterLevel(
             chapter.id
@@ -445,13 +333,10 @@ function renderChapterLevel(parentId) {
 
         } else {
 
-          showModes(
-            chapter
-          );
+          showModes(chapter);
         }
       }
     );
-
 
     container.appendChild(card);
   });
@@ -462,126 +347,67 @@ function renderChapterLevel(parentId) {
 // ICONES
 // ============================================================
 
-function getChapterIcon(
-  chapter,
-  hasChildren
-) {
+function getChapterIcon(chapter, hasChildren) {
 
-  if (
-    chapter.name === "Vocabulaire"
-  ) {
+  if (chapter.name === "Vocabulaire")
     return "🔤";
-  }
 
-  if (
-    chapter.name === "Grammaire"
-  ) {
+  if (chapter.name === "Grammaire")
     return "✏️";
-  }
 
-  if (
-    /^TS\d+/i.test(
-      chapter.name
-    )
-  ) {
+  if (/^TS\d+/i.test(chapter.name))
     return "📝";
-  }
 
-  if (
-    chapter.name.includes("Unit")
-  ) {
+  if (chapter.name.includes("Unit"))
     return "📚";
-  }
 
-  if (
-    chapter.name === "Family"
-  ) {
+  if (chapter.name === "Family")
     return "👨‍👩‍👧";
-  }
 
-  if (
-    chapter.name === "Housework"
-  ) {
+  if (chapter.name === "Housework")
     return "🧹";
-  }
 
-  if (
-    chapter.name === "Home objects"
-  ) {
+  if (chapter.name === "Home objects")
     return "🏠";
-  }
 
-  if (
-    chapter.name === "Words and phrases"
-  ) {
+  if (chapter.name === "Words and phrases")
     return "💬";
-  }
 
-  if (
-    chapter.name === "Everyday English"
-  ) {
+  if (chapter.name === "Everyday English")
     return "🗣️";
-  }
 
-  if (
-    chapter.name
-      .toLowerCase()
-      .includes("toute")
-  ) {
-    return "🎯";
-  }
-
-  if (
-    chapter.content_type === "flags"
-  ) {
+  if (chapter.content_type === "flags")
     return "🏳️";
-  }
 
-  if (
-    chapter.content_type === "map"
-  ) {
+  if (chapter.content_type === "map")
     return "🗺️";
-  }
 
-  if (
-    chapter.content_type === "french_vocab"
-  ) {
+  if (chapter.content_type === "french_vocab")
     return "📖";
-  }
 
-  if (hasChildren) {
+  if (hasChildren)
     return "📂";
-  }
 
   return "📘";
 }
 
 
 // ============================================================
-// MODES D'UN CHAPITRE
+// MODES GENERIQUES
 // ============================================================
 
 function showModes(chapter) {
 
   currentChapter = chapter;
 
-
-  // ----------------------------------------------------------
-  // VOCABULAIRE FRANCAIS
-  // ----------------------------------------------------------
-
   if (
     chapter.content_type ===
     "french_vocab"
   ) {
 
-    showFrenchVocabModes(
-      chapter
-    );
-
+    showFrenchVocabModes(chapter);
     return;
   }
-
 
   title.textContent =
     chapter.name;
@@ -591,15 +417,12 @@ function showModes(chapter) {
 
   container.innerHTML = "";
 
-
   addBackButton(
     goBackToChapterList
   );
 
 
-  // ----------------------------------------------------------
   // REVISION
-  // ----------------------------------------------------------
 
   const revision =
     document.createElement("div");
@@ -607,33 +430,15 @@ function showModes(chapter) {
   revision.className =
     "subject-card";
 
-
-  let revisionIcon = "📚";
-  let revisionDescription =
-    "Cartes de révision";
-
-
-  if (
-    chapter.content_type === "flags"
-  ) {
-
-    revisionIcon = "🏳️";
-    revisionDescription =
-      "Drapeau → pays";
-
-  } else if (
-    chapter.content_type === "map"
-  ) {
-
-    revisionIcon = "🗺️";
-    revisionDescription =
-      "Retrouve les pays sur la carte";
-  }
-
-
   revision.innerHTML = `
     <div class="subject-icon">
-      ${revisionIcon}
+      ${
+        chapter.content_type === "map"
+          ? "🗺️"
+          : chapter.content_type === "flags"
+          ? "🏳️"
+          : "📚"
+      }
     </div>
 
     <div class="subject-name">
@@ -641,39 +446,38 @@ function showModes(chapter) {
     </div>
 
     <div class="mode-description">
-      ${revisionDescription}
+      ${
+        chapter.content_type === "map"
+          ? "Retrouve les pays sur la carte"
+          : chapter.content_type === "flags"
+          ? "Drapeau → pays"
+          : "Cartes de révision"
+      }
     </div>
   `;
-
 
   revision.addEventListener(
     "click",
     () => {
 
       if (
-        chapter.content_type === "flags"
-      ) {
-
-        startFlagReview(
-          chapter
-        );
-
-      } else if (
         chapter.content_type === "map"
       ) {
 
-        startMapReview(
-          chapter
-        );
+        startMapReview(chapter);
+
+      } else if (
+        chapter.content_type === "flags"
+      ) {
+
+        startFlagReview(chapter);
 
       } else if (
         chapter.direction_mode ===
         "bidirectional"
       ) {
 
-        showDirectionChoice(
-          "review"
-        );
+        showDirectionChoice("review");
 
       } else {
 
@@ -685,31 +489,21 @@ function showModes(chapter) {
     }
   );
 
-
-  container.appendChild(
-    revision
-  );
+  container.appendChild(revision);
 
 
-  // ----------------------------------------------------------
   // TEST
-  // ----------------------------------------------------------
 
   const test =
     document.createElement("div");
 
-
-  if (
-    chapter.test_mode === "disabled"
-  ) {
+  if (chapter.test_mode === "disabled") {
 
     test.className =
       "subject-card disabled-card";
 
     test.innerHTML = `
-      <div class="subject-icon">
-        🎯
-      </div>
+      <div class="subject-icon">🎯</div>
 
       <div class="subject-name">
         Test
@@ -725,41 +519,6 @@ function showModes(chapter) {
     test.className =
       "subject-card";
 
-
-    let description =
-      "Teste tes connaissances";
-
-
-    if (
-      chapter.test_mode === "written"
-    ) {
-
-      description =
-        "Écris les réponses";
-
-    } else if (
-      chapter.test_mode === "qcm"
-    ) {
-
-      description =
-        "Choisis la bonne réponse";
-
-    } else if (
-      chapter.content_type === "flags"
-    ) {
-
-      description =
-        "Choisis le bon drapeau";
-
-    } else if (
-      chapter.content_type === "map"
-    ) {
-
-      description =
-        "Retrouve 20 pays";
-    }
-
-
     test.innerHTML = `
       <div class="subject-icon">
         🎯
@@ -770,10 +529,15 @@ function showModes(chapter) {
       </div>
 
       <div class="mode-description">
-        ${description}
+        ${
+          chapter.test_mode === "written"
+            ? "Écris les réponses"
+            : chapter.test_mode === "qcm"
+            ? "Choisis la bonne réponse"
+            : "Teste tes connaissances"
+        }
       </div>
     `;
-
 
     test.addEventListener(
       "click",
@@ -783,26 +547,20 @@ function showModes(chapter) {
           chapter.content_type === "flags"
         ) {
 
-          startFlagTest(
-            chapter
-          );
+          startFlagTest(chapter);
 
         } else if (
           chapter.content_type === "map"
         ) {
 
-          startMapTest(
-            chapter
-          );
+          startMapTest(chapter);
 
         } else if (
           chapter.direction_mode ===
           "bidirectional"
         ) {
 
-          showDirectionChoice(
-            "test"
-          );
+          showDirectionChoice("test");
 
         } else {
 
@@ -815,23 +573,17 @@ function showModes(chapter) {
     );
   }
 
-
-  container.appendChild(
-    test
-  );
+  container.appendChild(test);
 }
 
 
 // ============================================================
-// VOCABULAIRE FRANCAIS - MODES
+// MODES FRANCAIS
 // ============================================================
 
-function showFrenchVocabModes(
-  chapter
-) {
+function showFrenchVocabModes(chapter) {
 
   currentChapter = chapter;
-
 
   title.textContent =
     chapter.name;
@@ -841,23 +593,17 @@ function showFrenchVocabModes(
 
   container.innerHTML = "";
 
-
   addBackButton(
     goBackToChapterList
   );
-
 
   const modes = [
 
     {
       icon: "📄",
-
-      name:
-        "Fiche de révision",
-
+      name: "Fiche de révision",
       description:
         "Vocabulaire, définitions et suppléments",
-
       action:
         () =>
           startFrenchRevisionSheet(
@@ -867,13 +613,9 @@ function showFrenchVocabModes(
 
     {
       icon: "🧩",
-
-      name:
-        "Apprentissage",
-
+      name: "Apprentissage",
       description:
         "Associe les mots et leurs définitions",
-
       action:
         () =>
           startFrenchLearning(
@@ -883,13 +625,9 @@ function showFrenchVocabModes(
 
     {
       icon: "✍️",
-
-      name:
-        "Définition → mot",
-
+      name: "Définition → mot",
       description:
         "Lis la définition et écris le vocabulaire",
-
       action:
         () =>
           chooseFrenchTestLength(
@@ -900,13 +638,9 @@ function showFrenchVocabModes(
 
     {
       icon: "📝",
-
-      name:
-        "Phrase à trou",
-
+      name: "Phrase à trou",
       description:
         "Complète la phrase avec le bon mot",
-
       action:
         () =>
           chooseFrenchTestLength(
@@ -917,13 +651,9 @@ function showFrenchVocabModes(
 
     {
       icon: "🔊",
-
-      name:
-        "Dictée",
-
+      name: "Dictée",
       description:
         "Écoute le mot puis écris-le",
-
       action:
         () =>
           chooseFrenchTestLength(
@@ -934,13 +664,9 @@ function showFrenchVocabModes(
 
     {
       icon: "🔁",
-
-      name:
-        "Contraires",
-
+      name: "Contraires",
       description:
         "Cartes de révision sur les contraires",
-
       action:
         () =>
           showOppositeDirectionChoice(
@@ -949,7 +675,6 @@ function showFrenchVocabModes(
     }
   ];
 
-
   modes.forEach(mode => {
 
     const card =
@@ -957,7 +682,6 @@ function showFrenchVocabModes(
 
     card.className =
       "subject-card";
-
 
     card.innerHTML = `
       <div class="subject-icon">
@@ -973,16 +697,12 @@ function showFrenchVocabModes(
       </div>
     `;
 
-
     card.addEventListener(
       "click",
       mode.action
     );
 
-
-    container.appendChild(
-      card
-    );
+    container.appendChild(card);
   });
 }
 
@@ -991,9 +711,7 @@ function showFrenchVocabModes(
 // FICHE DE REVISION FRANCAIS
 // ============================================================
 
-async function startFrenchRevisionSheet(
-  chapter
-) {
+async function startFrenchRevisionSheet(chapter) {
 
   title.textContent =
     chapter.name;
@@ -1004,17 +722,12 @@ async function startFrenchRevisionSheet(
   container.innerHTML =
     "<p>Chargement...</p>";
 
-
   const cards =
-    await loadCards(
-      chapter
-    );
+    await loadCards(chapter);
 
   if (!cards) return;
 
-
   container.innerHTML = "";
-
 
   addBackButton(
     () =>
@@ -1022,7 +735,6 @@ async function startFrenchRevisionSheet(
         chapter
       )
   );
-
 
   const sheet =
     document.createElement("div");
@@ -1039,45 +751,16 @@ async function startFrenchRevisionSheet(
   sheet.style.padding =
     "30px";
 
-
-  const heading =
-    document.createElement("div");
-
-
-  heading.innerHTML = `
-    <h2 style="
-      margin-top:0;
-      margin-bottom:8px;
-    ">
-      📄 Fiche de révision
-    </h2>
-
-    <p style="
-      color:#6b7280;
-      margin-bottom:30px;
-    ">
-      Mot • définition • supplément
-    </p>
-  `;
-
-
-  sheet.appendChild(
-    heading
-  );
-
-
   cards.forEach(card => {
 
     const row =
       document.createElement("div");
-
 
     row.style.padding =
       "20px 0";
 
     row.style.borderBottom =
       "1px solid #e5e7eb";
-
 
     row.innerHTML = `
       <div style="
@@ -1088,12 +771,9 @@ async function startFrenchRevisionSheet(
         ${escapeHtml(card.answer)}
       </div>
 
-
       <div style="
         font-size:17px;
         line-height:1.5;
-        margin-bottom:
-        ${card.supplement ? "8px" : "0"};
       ">
         <strong>
           Définition :
@@ -1105,13 +785,12 @@ async function startFrenchRevisionSheet(
         )}
       </div>
 
-
       ${
         card.supplement
           ? `
             <div style="
+              margin-top:8px;
               font-size:16px;
-              line-height:1.5;
               color:#4b5563;
             ">
               <strong>
@@ -1127,42 +806,10 @@ async function startFrenchRevisionSheet(
       }
     `;
 
-
-    sheet.appendChild(
-      row
-    );
+    sheet.appendChild(row);
   });
 
-
-  const bottomBack =
-    document.createElement(
-      "button"
-    );
-
-
-  bottomBack.className =
-    "secondary-button";
-
-  bottomBack.textContent =
-    "← Retour";
-
-
-  bottomBack.addEventListener(
-    "click",
-    () =>
-      showFrenchVocabModes(
-        chapter
-      )
-  );
-
-
-  sheet.appendChild(
-    bottomBack
-  );
-
-  container.appendChild(
-    sheet
-  );
+  container.appendChild(sheet);
 }
 
 
@@ -1170,44 +817,24 @@ async function startFrenchRevisionSheet(
 // APPRENTISSAGE FRANCAIS
 // ============================================================
 
-async function startFrenchLearning(
-  chapter
-) {
-
-  title.textContent =
-    chapter.name;
-
-  subtitle.textContent =
-    "Apprentissage";
-
-  container.innerHTML =
-    "<p>Chargement...</p>";
-
+async function startFrenchLearning(chapter) {
 
   const cards =
-    await loadCards(
-      chapter
-    );
+    await loadCards(chapter);
 
   if (!cards) return;
 
-
   frenchLearningCards =
-    cards.map(
-      card => ({
-        ...card
-      })
-    );
-
+    cards.map(card => ({
+      ...card
+    }));
 
   shuffleArray(
     frenchLearningCards
   );
 
-
   frenchLearningIndex = 0;
   frenchLearningScore = 0;
-
 
   showFrenchLearningQuestion();
 }
@@ -1224,32 +851,25 @@ function showFrenchLearningQuestion() {
     return;
   }
 
-
   const current =
     frenchLearningCards[
       frenchLearningIndex
     ];
 
-
   const wrong =
-    frenchLearningCards
-      .filter(
-        card =>
-          card.id !== current.id
-      );
-
+    frenchLearningCards.filter(
+      card =>
+        card.id !== current.id
+    );
 
   shuffleArray(wrong);
-
 
   const options = [
     current,
     ...wrong.slice(0, 3)
   ];
 
-
   shuffleArray(options);
-
 
   title.textContent =
     currentChapter.name;
@@ -1257,25 +877,8 @@ function showFrenchLearningQuestion() {
   subtitle.textContent =
     `Apprentissage • ${frenchLearningIndex + 1}/${frenchLearningCards.length}`;
 
-
   container.innerHTML = `
-    <div class="review-box qcm-card">
-
-      <div class="qcm-topbar">
-
-        <div class="qcm-counter">
-          Carte ${frenchLearningIndex + 1}
-          <span>
-            sur ${frenchLearningCards.length}
-          </span>
-        </div>
-
-        <div class="qcm-score">
-          ⭐ ${frenchLearningScore}
-        </div>
-
-      </div>
-
+    <div class="review-box">
 
       <div class="review-question">
         ${escapeHtml(
@@ -1283,45 +886,30 @@ function showFrenchLearningQuestion() {
         )}
       </div>
 
-
       <div style="
         color:#6b7280;
-        margin-bottom:25px;
+        margin-bottom:20px;
       ">
         Choisis la bonne définition.
       </div>
 
-
       <div class="qcm-grid">
 
         ${options.map(
-          (option, index) => `
-
+          option => `
             <button
               class="qcm-choice french-learning-choice"
               data-id="${option.id}"
             >
-
-              <span class="qcm-letter">
-                ${["A", "B", "C", "D"][index]}
-              </span>
-
-              <span style="
-                text-align:left;
-                line-height:1.4;
-              ">
-                ${escapeHtml(
-                  option.definition ||
-                  option.question
-                )}
-              </span>
-
+              ${escapeHtml(
+                option.definition ||
+                option.question
+              )}
             </button>
           `
         ).join("")}
 
       </div>
-
 
       <div
         id="french-learning-feedback"
@@ -1332,7 +920,6 @@ function showFrenchLearningQuestion() {
         "
       ></div>
 
-
       <button
         id="french-learning-next"
         class="main-button hidden"
@@ -1340,7 +927,6 @@ function showFrenchLearningQuestion() {
       >
         Suivant
       </button>
-
 
       <button
         id="quit-french-learning"
@@ -1352,7 +938,6 @@ function showFrenchLearningQuestion() {
     </div>
   `;
 
-
   document
     .querySelectorAll(
       ".french-learning-choice"
@@ -1363,57 +948,41 @@ function showFrenchLearningQuestion() {
         "click",
         () => {
 
-          const selectedId =
+          const selected =
             Number(
               button.dataset.id
             );
 
-
-          const buttons =
-            document.querySelectorAll(
+          document
+            .querySelectorAll(
               ".french-learning-choice"
-            );
+            )
+            .forEach(b => {
 
-
-          buttons.forEach(
-            currentButton => {
-
-              currentButton.disabled =
-                true;
-
+              b.disabled = true;
 
               if (
-                Number(
-                  currentButton.dataset.id
-                ) ===
+                Number(b.dataset.id) ===
                 Number(current.id)
               ) {
 
-                currentButton
-                  .classList
-                  .add(
-                    "qcm-correct"
-                  );
+                b.classList.add(
+                  "qcm-correct"
+                );
               }
-            }
-          );
-
+            });
 
           const feedback =
             document.getElementById(
               "french-learning-feedback"
             );
 
-
-          feedback
-            .classList
-            .remove(
-              "hidden"
-            );
-
+          feedback.classList.remove(
+            "hidden"
+          );
 
           if (
-            selectedId ===
+            selected ===
             Number(current.id)
           ) {
 
@@ -1427,11 +996,9 @@ function showFrenchLearningQuestion() {
 
           } else {
 
-            button
-              .classList
-              .add(
-                "qcm-wrong"
-              );
+            button.classList.add(
+              "qcm-wrong"
+            );
 
             feedback.innerHTML = `
               ❌ À revoir :
@@ -1445,25 +1012,21 @@ function showFrenchLearningQuestion() {
             feedback.style.color =
               "#b91c1c";
 
-
             frenchLearningCards.push(
               current
             );
           }
 
-
           document
             .getElementById(
               "french-learning-next"
             )
-            .classList
-            .remove(
+            .classList.remove(
               "hidden"
             );
         }
       );
     });
-
 
   document
     .getElementById(
@@ -1474,11 +1037,9 @@ function showFrenchLearningQuestion() {
       () => {
 
         frenchLearningIndex++;
-
         showFrenchLearningQuestion();
       }
     );
-
 
   document
     .getElementById(
@@ -1496,13 +1057,6 @@ function showFrenchLearningQuestion() {
 
 function showFrenchLearningFinished() {
 
-  title.textContent =
-    currentChapter.name;
-
-  subtitle.textContent =
-    "Apprentissage terminé";
-
-
   container.innerHTML = `
     <div class="review-box">
 
@@ -1515,35 +1069,14 @@ function showFrenchLearningFinished() {
       </div>
 
       <button
-        id="restart-french-learning"
-        class="main-button"
-      >
-        Recommencer
-      </button>
-
-      <button
         id="back-french-learning"
-        class="secondary-button"
+        class="main-button"
       >
         Retour
       </button>
 
     </div>
   `;
-
-
-  document
-    .getElementById(
-      "restart-french-learning"
-    )
-    .addEventListener(
-      "click",
-      () =>
-        startFrenchLearning(
-          currentChapter
-        )
-    );
-
 
   document
     .getElementById(
@@ -1560,7 +1093,7 @@ function showFrenchLearningFinished() {
 
 
 // ============================================================
-// CHOIX 10 / 20 / TOUS
+// CHOIX LONGUEUR TEST FRANCAIS
 // ============================================================
 
 function chooseFrenchTestLength(
@@ -1571,30 +1104,14 @@ function chooseFrenchTestLength(
   title.textContent =
     chapter.name;
 
-
-  if (
+  subtitle.textContent =
     mode === "dictation"
-  ) {
-
-    subtitle.textContent =
-      "Dictée";
-
-  } else if (
-    mode === "cloze"
-  ) {
-
-    subtitle.textContent =
-      "Phrase à trou";
-
-  } else {
-
-    subtitle.textContent =
-      "Définition → mot";
-  }
-
+      ? "Dictée"
+      : mode === "cloze"
+      ? "Phrase à trou"
+      : "Définition → mot";
 
   container.innerHTML = "";
-
 
   addBackButton(
     () =>
@@ -1603,29 +1120,23 @@ function chooseFrenchTestLength(
       )
   );
 
-
   const choices = [
-
     {
       icon: "🔟",
       name: "10 mots",
       amount: 10
     },
-
     {
       icon: "2️⃣0️⃣",
       name: "20 mots",
       amount: 20
     },
-
     {
       icon: "📚",
       name: "Tous les mots",
       amount: "all"
     }
-
   ];
-
 
   choices.forEach(choice => {
 
@@ -1634,7 +1145,6 @@ function chooseFrenchTestLength(
 
     card.className =
       "subject-card";
-
 
     card.innerHTML = `
       <div class="subject-icon">
@@ -1646,14 +1156,11 @@ function chooseFrenchTestLength(
       </div>
     `;
 
-
     card.addEventListener(
       "click",
       () => {
 
-        if (
-          mode === "dictation"
-        ) {
+        if (mode === "dictation") {
 
           startFrenchDictation(
             chapter,
@@ -1679,10 +1186,7 @@ function chooseFrenchTestLength(
       }
     );
 
-
-    container.appendChild(
-      card
-    );
+    container.appendChild(card);
   });
 }
 
@@ -1693,26 +1197,13 @@ function chooseFrenchTestLength(
 
 async function startFrenchWrittenTest(
   chapter,
-  amount = 20
+  amount
 ) {
 
-  title.textContent =
-    chapter.name;
-
-  subtitle.textContent =
-    "Définition → mot";
-
-  container.innerHTML =
-    "<p>Chargement...</p>";
-
-
   const cards =
-    await loadCards(
-      chapter
-    );
+    await loadCards(chapter);
 
   if (!cards) return;
-
 
   testQuestions =
     cards.map(card => ({
@@ -1729,15 +1220,11 @@ async function startFrenchWrittenTest(
 
     }));
 
-
   shuffleArray(
     testQuestions
   );
 
-
-  if (
-    amount !== "all"
-  ) {
+  if (amount !== "all") {
 
     testQuestions =
       testQuestions.slice(
@@ -1746,10 +1233,8 @@ async function startFrenchWrittenTest(
       );
   }
 
-
   currentTestIndex = 0;
   testScore = 0;
-
 
   showFrenchWrittenQuestion();
 }
@@ -1766,95 +1251,39 @@ function showFrenchWrittenQuestion() {
     return;
   }
 
-
   const current =
     testQuestions[
       currentTestIndex
     ];
-
-
-  const progress =
-    ((currentTestIndex + 1) /
-      testQuestions.length) *
-    100;
-
-
-  title.textContent =
-    currentChapter.name;
-
-  subtitle.textContent =
-    "Définition → mot";
-
 
   container.innerHTML = `
     <div class="review-box">
 
       <div class="qcm-topbar">
 
-        <div class="qcm-counter">
+        <div>
           Question ${currentTestIndex + 1}
-
-          <span>
-            sur ${testQuestions.length}
-          </span>
+          / ${testQuestions.length}
         </div>
 
-        <div class="qcm-score">
+        <div>
           ⭐ ${testScore}
         </div>
 
       </div>
 
-
-      <div class="qcm-progress">
-
-        <div
-          class="qcm-progress-bar"
-          style="width:${progress}%"
-        ></div>
-
-      </div>
-
-
-      <div style="
-        color:#6b7280;
-        margin-bottom:15px;
-      ">
-        Quel mot ou quelle expression
-        correspond à cette définition ?
-      </div>
-
-
       <div class="review-question">
-
-  ${escapeHtml(
-    current.question
-  )}
-
-  ${
-    current.hint
-      ? `
-        <div style="
-          margin-top:14px;
-          font-size:18px;
-          font-weight:600;
-          color:#6b7280;
-        ">
-          (${escapeHtml(current.hint)})
-        </div>
-      `
-      : ""
-  }
-
-</div>
-
+        ${escapeHtml(
+          current.question
+        )}
+      </div>
 
       <input
         id="french-written-answer"
         type="text"
         autocomplete="off"
         spellcheck="false"
-        placeholder="Écris le mot ou l’expression"
+        placeholder="Écris le mot"
         style="
           width:100%;
           padding:18px;
@@ -1865,7 +1294,6 @@ function showFrenchWrittenQuestion() {
         "
       >
 
-
       <button
         id="validate-french-written"
         class="main-button"
@@ -1873,17 +1301,15 @@ function showFrenchWrittenQuestion() {
         Valider
       </button>
 
-
       <div
         id="french-written-feedback"
         class="hidden"
         style="
-          margin-top:22px;
+          margin-top:20px;
           font-size:19px;
           font-weight:700;
         "
       ></div>
-
 
       <button
         id="next-french-written"
@@ -1892,7 +1318,6 @@ function showFrenchWrittenQuestion() {
       >
         Question suivante
       </button>
-
 
       <button
         id="quit-french-written"
@@ -1904,32 +1329,33 @@ function showFrenchWrittenQuestion() {
     </div>
   `;
 
-
   const input =
     document.getElementById(
       "french-written-answer"
     );
 
-
   input.focus();
-
 
   const validate = () => {
 
     const value =
       input.value.trim();
 
-
     if (!value) return;
 
+    const accepted = [
+      current.answer,
+      ...(current.accepted_answers || [])
+    ];
 
-   const correct =
-  normalizeAnswer(value) ===
-  normalizeAnswer(current.answer);
-
+    const correct =
+      accepted.some(
+        answer =>
+          normalizeAnswer(value) ===
+          normalizeAnswer(answer)
+      );
 
     input.disabled = true;
-
 
     document
       .getElementById(
@@ -1939,7 +1365,6 @@ function showFrenchWrittenQuestion() {
         "hidden"
       );
 
-
     document
       .getElementById(
         "next-french-written"
@@ -1948,19 +1373,14 @@ function showFrenchWrittenQuestion() {
         "hidden"
       );
 
-
     const feedback =
       document.getElementById(
         "french-written-feedback"
       );
 
-
-    feedback
-      .classList
-      .remove(
-        "hidden"
-      );
-
+    feedback.classList.remove(
+      "hidden"
+    );
 
     if (correct) {
 
@@ -1976,34 +1396,17 @@ function showFrenchWrittenQuestion() {
 
       feedback.innerHTML = `
         ❌ Réponse attendue :
-        <br>
-
         <strong>
           ${escapeHtml(
             current.answer
           )}
         </strong>
-
-        ${
-          current.accepted_answers?.length
-            ? `
-              <br>
-              <small>
-                Autres réponses acceptées :
-                ${escapeHtml(
-                  current.accepted_answers.join(", ")
-                )}
-              </small>
-            `
-            : ""
-        }
       `;
 
       feedback.style.color =
         "#b91c1c";
     }
   };
-
 
   document
     .getElementById(
@@ -2014,15 +1417,12 @@ function showFrenchWrittenQuestion() {
       validate
     );
 
-
   input.addEventListener(
     "keydown",
     event => {
 
-      if (
-        event.key !== "Enter"
-      ) return;
-
+      if (event.key !== "Enter")
+        return;
 
       if (!input.disabled) {
 
@@ -2031,12 +1431,10 @@ function showFrenchWrittenQuestion() {
       } else {
 
         currentTestIndex++;
-
         showFrenchWrittenQuestion();
       }
     }
   );
-
 
   document
     .getElementById(
@@ -2047,11 +1445,9 @@ function showFrenchWrittenQuestion() {
       () => {
 
         currentTestIndex++;
-
         showFrenchWrittenQuestion();
       }
     );
-
 
   document
     .getElementById(
@@ -2076,54 +1472,35 @@ async function startFrenchClozeTest(
   amount
 ) {
 
-  title.textContent =
-    chapter.name;
-
-  subtitle.textContent =
-    "Phrase à trou";
-
-  container.innerHTML =
-    "<p>Chargement...</p>";
-
-
   const cards =
-    await loadCards(
-      chapter
-    );
+    await loadCards(chapter);
 
   if (!cards) return;
 
-
- testQuestions =
-  cards
-    .filter(card =>
-      card.cloze_sentence &&
-      card.cloze_answer
-    )
-    .map(card => ({
-
-      question:
-        card.cloze_sentence,
-
-      hint:
-        card.cloze_hint,
-
-      answer:
+  testQuestions =
+    cards
+      .filter(card =>
+        card.cloze_sentence &&
         card.cloze_answer
+      )
+      .map(card => ({
 
-    }));
+        question:
+          card.cloze_sentence,
+
+        hint:
+          card.cloze_hint,
+
+        answer:
+          card.cloze_answer
 
       }));
-
 
   shuffleArray(
     testQuestions
   );
 
-
-  if (
-    amount !== "all"
-  ) {
+  if (amount !== "all") {
 
     testQuestions =
       testQuestions.slice(
@@ -2132,10 +1509,8 @@ async function startFrenchClozeTest(
       );
   }
 
-
   currentTestIndex = 0;
   testScore = 0;
-
 
   showFrenchClozeQuestion();
 }
@@ -2152,18 +1527,10 @@ function showFrenchClozeQuestion() {
     return;
   }
 
-
   const current =
     testQuestions[
       currentTestIndex
     ];
-
-
-  const progress =
-    ((currentTestIndex + 1) /
-      testQuestions.length) *
-    100;
-
 
   title.textContent =
     currentChapter.name;
@@ -2171,36 +1538,21 @@ function showFrenchClozeQuestion() {
   subtitle.textContent =
     "Phrase à trou";
 
-
   container.innerHTML = `
     <div class="review-box">
 
       <div class="qcm-topbar">
 
-        <div class="qcm-counter">
+        <div>
           Question ${currentTestIndex + 1}
-
-          <span>
-            sur ${testQuestions.length}
-          </span>
+          / ${testQuestions.length}
         </div>
 
-        <div class="qcm-score">
+        <div>
           ⭐ ${testScore}
         </div>
 
       </div>
-
-
-      <div class="qcm-progress">
-
-        <div
-          class="qcm-progress-bar"
-          style="width:${progress}%"
-        ></div>
-
-      </div>
-
 
       <div style="
         color:#6b7280;
@@ -2209,13 +1561,30 @@ function showFrenchClozeQuestion() {
         Complète la phrase.
       </div>
 
-
       <div class="review-question">
+
         ${escapeHtml(
           current.question
         )}
-      </div>
 
+        ${
+          current.hint
+            ? `
+              <div style="
+                margin-top:14px;
+                font-size:18px;
+                font-weight:600;
+                color:#6b7280;
+              ">
+                (${escapeHtml(
+                  current.hint
+                )})
+              </div>
+            `
+            : ""
+        }
+
+      </div>
 
       <input
         id="cloze-answer"
@@ -2233,7 +1602,6 @@ function showFrenchClozeQuestion() {
         "
       >
 
-
       <button
         id="validate-cloze"
         class="main-button"
@@ -2241,17 +1609,15 @@ function showFrenchClozeQuestion() {
         Valider
       </button>
 
-
       <div
         id="cloze-feedback"
         class="hidden"
         style="
-          margin-top:22px;
+          margin-top:20px;
           font-size:19px;
           font-weight:700;
         "
       ></div>
-
 
       <button
         id="next-cloze"
@@ -2260,7 +1626,6 @@ function showFrenchClozeQuestion() {
       >
         Question suivante
       </button>
-
 
       <button
         id="quit-cloze"
@@ -2272,41 +1637,32 @@ function showFrenchClozeQuestion() {
     </div>
   `;
 
-
   const input =
     document.getElementById(
       "cloze-answer"
     );
 
-
   input.focus();
-
 
   const validate = () => {
 
     const value =
       input.value.trim();
 
-
     if (!value) return;
 
-
-    const accepted = [
-      current.answer,
-      ...(current.accepted_answers || [])
-    ];
-
+    // IMPORTANT :
+    // Pour une phrase à trou, on exige
+    // exactement la forme grammaticale
+    // correspondant à la phrase.
 
     const correct =
-      accepted.some(
-        answer =>
-          normalizeAnswer(value) ===
-          normalizeAnswer(answer)
+      normalizeAnswer(value) ===
+      normalizeAnswer(
+        current.answer
       );
 
-
     input.disabled = true;
-
 
     document
       .getElementById(
@@ -2316,7 +1672,6 @@ function showFrenchClozeQuestion() {
         "hidden"
       );
 
-
     document
       .getElementById(
         "next-cloze"
@@ -2325,19 +1680,14 @@ function showFrenchClozeQuestion() {
         "hidden"
       );
 
-
     const feedback =
       document.getElementById(
         "cloze-feedback"
       );
 
-
-    feedback
-      .classList
-      .remove(
-        "hidden"
-      );
-
+    feedback.classList.remove(
+      "hidden"
+    );
 
     if (correct) {
 
@@ -2365,7 +1715,6 @@ function showFrenchClozeQuestion() {
     }
   };
 
-
   document
     .getElementById(
       "validate-cloze"
@@ -2375,15 +1724,12 @@ function showFrenchClozeQuestion() {
       validate
     );
 
-
   input.addEventListener(
     "keydown",
     event => {
 
-      if (
-        event.key !== "Enter"
-      ) return;
-
+      if (event.key !== "Enter")
+        return;
 
       if (!input.disabled) {
 
@@ -2392,12 +1738,10 @@ function showFrenchClozeQuestion() {
       } else {
 
         currentTestIndex++;
-
         showFrenchClozeQuestion();
       }
     }
   );
-
 
   document
     .getElementById(
@@ -2408,11 +1752,9 @@ function showFrenchClozeQuestion() {
       () => {
 
         currentTestIndex++;
-
         showFrenchClozeQuestion();
       }
     );
-
 
   document
     .getElementById(
@@ -2437,44 +1779,24 @@ async function startFrenchDictation(
   amount
 ) {
 
-  title.textContent =
-    chapter.name;
-
-  subtitle.textContent =
-    "Dictée";
-
-  container.innerHTML =
-    "<p>Chargement...</p>";
-
-
   const cards =
-    await loadCards(
-      chapter
-    );
+    await loadCards(chapter);
 
   if (!cards) return;
-
 
   testQuestions =
     cards.map(card => ({
 
       answer:
-        card.answer,
-
-      accepted_answers:
-        card.accepted_answers || []
+        card.answer
 
     }));
-
 
   shuffleArray(
     testQuestions
   );
 
-
-  if (
-    amount !== "all"
-  ) {
+  if (amount !== "all") {
 
     testQuestions =
       testQuestions.slice(
@@ -2483,10 +1805,8 @@ async function startFrenchDictation(
       );
   }
 
-
   currentTestIndex = 0;
   testScore = 0;
-
 
   showFrenchDictationQuestion();
 }
@@ -2506,22 +1826,13 @@ function showFrenchDictationQuestion() {
     }
 
     showTestFinished();
-
     return;
   }
-
 
   const current =
     testQuestions[
       currentTestIndex
     ];
-
-
-  const progress =
-    ((currentTestIndex + 1) /
-      testQuestions.length) *
-    100;
-
 
   title.textContent =
     currentChapter.name;
@@ -2529,36 +1840,21 @@ function showFrenchDictationQuestion() {
   subtitle.textContent =
     "Dictée";
 
-
   container.innerHTML = `
     <div class="review-box">
 
       <div class="qcm-topbar">
 
-        <div class="qcm-counter">
+        <div>
           Mot ${currentTestIndex + 1}
-
-          <span>
-            sur ${testQuestions.length}
-          </span>
+          / ${testQuestions.length}
         </div>
 
-        <div class="qcm-score">
+        <div>
           ⭐ ${testScore}
         </div>
 
       </div>
-
-
-      <div class="qcm-progress">
-
-        <div
-          class="qcm-progress-bar"
-          style="width:${progress}%"
-        ></div>
-
-      </div>
-
 
       <div
         class="subject-icon"
@@ -2570,11 +1866,9 @@ function showFrenchDictationQuestion() {
         🔊
       </div>
 
-
       <div class="review-question">
         Écoute puis écris le mot
       </div>
-
 
       <button
         id="listen-word"
@@ -2583,7 +1877,6 @@ function showFrenchDictationQuestion() {
       >
         🔊 Écouter
       </button>
-
 
       <input
         id="dictation-answer"
@@ -2601,7 +1894,6 @@ function showFrenchDictationQuestion() {
         "
       >
 
-
       <button
         id="validate-dictation"
         class="main-button"
@@ -2609,17 +1901,15 @@ function showFrenchDictationQuestion() {
         Valider
       </button>
 
-
       <div
         id="dictation-feedback"
         class="hidden"
         style="
-          margin-top:22px;
+          margin-top:20px;
           font-size:19px;
           font-weight:700;
         "
       ></div>
-
 
       <button
         id="next-dictation"
@@ -2628,7 +1918,6 @@ function showFrenchDictationQuestion() {
       >
         Mot suivant
       </button>
-
 
       <button
         id="quit-dictation"
@@ -2640,14 +1929,11 @@ function showFrenchDictationQuestion() {
     </div>
   `;
 
-
-  const speak = () => {
-
-    speakFrenchWord(
-      current.answer
-    );
-  };
-
+  const speak =
+    () =>
+      speakFrenchWord(
+        current.answer
+      );
 
   document
     .getElementById(
@@ -2658,32 +1944,19 @@ function showFrenchDictationQuestion() {
       speak
     );
 
-
   const input =
     document.getElementById(
       "dictation-answer"
     );
 
-
   input.focus();
-
 
   const validate = () => {
 
     const value =
       input.value.trim();
 
-
     if (!value) return;
-
-
-    /*
-      En dictée, on teste l'orthographe du mot entendu.
-      On ne valide donc PAS les synonymes.
-
-      Si l'app prononce "sinueux",
-      il faut écrire "sinueux".
-    */
 
     const correct =
       normalizeAnswer(value) ===
@@ -2691,9 +1964,7 @@ function showFrenchDictationQuestion() {
         current.answer
       );
 
-
     input.disabled = true;
-
 
     document
       .getElementById(
@@ -2703,7 +1974,6 @@ function showFrenchDictationQuestion() {
         "hidden"
       );
 
-
     document
       .getElementById(
         "next-dictation"
@@ -2712,19 +1982,14 @@ function showFrenchDictationQuestion() {
         "hidden"
       );
 
-
     const feedback =
       document.getElementById(
         "dictation-feedback"
       );
 
-
-    feedback
-      .classList
-      .remove(
-        "hidden"
-      );
-
+    feedback.classList.remove(
+      "hidden"
+    );
 
     if (correct) {
 
@@ -2740,8 +2005,6 @@ function showFrenchDictationQuestion() {
 
       feedback.innerHTML = `
         ❌ Le mot était :
-        <br>
-
         <strong>
           ${escapeHtml(
             current.answer
@@ -2754,7 +2017,6 @@ function showFrenchDictationQuestion() {
     }
   };
 
-
   document
     .getElementById(
       "validate-dictation"
@@ -2764,15 +2026,12 @@ function showFrenchDictationQuestion() {
       validate
     );
 
-
   input.addEventListener(
     "keydown",
     event => {
 
-      if (
-        event.key !== "Enter"
-      ) return;
-
+      if (event.key !== "Enter")
+        return;
 
       if (!input.disabled) {
 
@@ -2781,12 +2040,10 @@ function showFrenchDictationQuestion() {
       } else {
 
         currentTestIndex++;
-
         showFrenchDictationQuestion();
       }
     }
   );
-
 
   document
     .getElementById(
@@ -2797,11 +2054,9 @@ function showFrenchDictationQuestion() {
       () => {
 
         currentTestIndex++;
-
         showFrenchDictationQuestion();
       }
     );
-
 
   document
     .getElementById(
@@ -2823,13 +2078,6 @@ function showFrenchDictationQuestion() {
       }
     );
 
-
-  /*
-    Tentative de lecture automatique.
-    Sur iPhone/iPad, Safari peut exiger
-    un premier clic sur "Écouter".
-  */
-
   setTimeout(
     speak,
     400
@@ -2838,7 +2086,7 @@ function showFrenchDictationQuestion() {
 
 
 // ============================================================
-// SYNTHESE VOCALE
+// VOIX FRANCAISE
 // ============================================================
 
 function speakFrenchWord(word) {
@@ -2854,15 +2102,12 @@ function speakFrenchWord(word) {
     return;
   }
 
-
   speechSynthesis.cancel();
-
 
   const utterance =
     new SpeechSynthesisUtterance(
       word
     );
-
 
   utterance.lang =
     "fr-FR";
@@ -2873,10 +2118,8 @@ function speakFrenchWord(word) {
   utterance.pitch =
     1;
 
-
   const voices =
     speechSynthesis.getVoices();
-
 
   const frenchVoice =
     voices.find(
@@ -2898,13 +2141,11 @@ function speakFrenchWord(word) {
           .startsWith("fr")
     );
 
-
   if (frenchVoice) {
 
     utterance.voice =
       frenchVoice;
   }
-
 
   speechSynthesis.speak(
     utterance
@@ -2916,9 +2157,7 @@ function speakFrenchWord(word) {
 // CONTRAIRES
 // ============================================================
 
-function showOppositeDirectionChoice(
-  chapter
-) {
+function showOppositeDirectionChoice(chapter) {
 
   title.textContent =
     chapter.name;
@@ -2928,7 +2167,6 @@ function showOppositeDirectionChoice(
 
   container.innerHTML = "";
 
-
   addBackButton(
     () =>
       showFrenchVocabModes(
@@ -2936,35 +2174,26 @@ function showOppositeDirectionChoice(
       )
   );
 
-
   const choices = [
 
     {
       icon: "➡️",
-      title:
-        "Mot → contraire",
-      direction:
-        "forward"
+      title: "Mot → contraire",
+      direction: "forward"
     },
 
     {
       icon: "⬅️",
-      title:
-        "Contraire → mot",
-      direction:
-        "reverse"
+      title: "Contraire → mot",
+      direction: "reverse"
     },
 
     {
       icon: "🔀",
-      title:
-        "Les deux",
-      direction:
-        "both"
+      title: "Les deux",
+      direction: "both"
     }
-
   ];
-
 
   choices.forEach(choice => {
 
@@ -2973,7 +2202,6 @@ function showOppositeDirectionChoice(
 
     card.className =
       "subject-card";
-
 
     card.innerHTML = `
       <div class="subject-icon">
@@ -2985,7 +2213,6 @@ function showOppositeDirectionChoice(
       </div>
     `;
 
-
     card.addEventListener(
       "click",
       () =>
@@ -2995,10 +2222,7 @@ function showOppositeDirectionChoice(
         )
     );
 
-
-    container.appendChild(
-      card
-    );
+    container.appendChild(card);
   });
 }
 
@@ -3008,31 +2232,16 @@ async function startOppositeCards(
   direction
 ) {
 
-  title.textContent =
-    chapter.name;
-
-  subtitle.textContent =
-    "Cartes des contraires";
-
-  container.innerHTML =
-    "<p>Chargement...</p>";
-
-
   const cards =
-    await loadCards(
-      chapter
-    );
+    await loadCards(chapter);
 
   if (!cards) return;
 
-
   oppositeQuestions = [];
-
 
   cards
     .filter(
-      card =>
-        card.opposite
+      card => card.opposite
     )
     .forEach(card => {
 
@@ -3044,12 +2253,10 @@ async function startOppositeCards(
         oppositeQuestions.push({
           question:
             card.answer,
-
           answer:
             card.opposite
         });
       }
-
 
       if (
         direction === "reverse" ||
@@ -3059,54 +2266,69 @@ async function startOppositeCards(
         oppositeQuestions.push({
           question:
             card.opposite,
-
           answer:
             card.answer
         });
       }
     });
 
-
   shuffleArray(
     oppositeQuestions
   );
 
-
   oppositeIndex = 0;
 
-
-  showOppositeCard(
-    direction
-  );
+  showOppositeCard(direction);
 }
 
 
-function showOppositeCard(
-  direction
-) {
+function showOppositeCard(direction) {
 
   if (
     oppositeIndex >=
     oppositeQuestions.length
   ) {
 
-    showOppositeFinished(
-      direction
-    );
+    container.innerHTML = `
+      <div class="review-box">
+
+        <div class="subject-icon">
+          🎉
+        </div>
+
+        <div class="review-question">
+          Contraires terminés !
+        </div>
+
+        <button
+          id="back-opposites"
+          class="main-button"
+        >
+          Retour
+        </button>
+
+      </div>
+    `;
+
+    document
+      .getElementById(
+        "back-opposites"
+      )
+      .addEventListener(
+        "click",
+        () =>
+          showFrenchVocabModes(
+            currentChapter
+          )
+      );
 
     return;
   }
-
 
   const current =
     oppositeQuestions[
       oppositeIndex
     ];
-
-
-  subtitle.textContent =
-    `Contraire ${oppositeIndex + 1}/${oppositeQuestions.length}`;
-
 
   container.innerHTML = `
     <div class="review-box">
@@ -3119,13 +2341,11 @@ function showOppositeCard(
         Quel est le contraire ?
       </div>
 
-
       <div class="review-question">
         ${escapeHtml(
           current.question
         )}
       </div>
-
 
       <button
         id="show-opposite"
@@ -3133,7 +2353,6 @@ function showOppositeCard(
       >
         Voir la réponse
       </button>
-
 
       <div
         id="opposite-answer-area"
@@ -3145,7 +2364,6 @@ function showOppositeCard(
             current.answer
           )}
         </div>
-
 
         <div class="review-actions">
 
@@ -3167,17 +2385,8 @@ function showOppositeCard(
 
       </div>
 
-
-      <button
-        id="quit-opposites"
-        class="secondary-button review-back-button"
-      >
-        ← Quitter
-      </button>
-
     </div>
   `;
-
 
   document
     .getElementById(
@@ -3191,23 +2400,19 @@ function showOppositeCard(
           .getElementById(
             "opposite-answer-area"
           )
-          .classList
-          .remove(
+          .classList.remove(
             "hidden"
           );
-
 
         document
           .getElementById(
             "show-opposite"
           )
-          .classList
-          .add(
+          .classList.add(
             "hidden"
           );
       }
     );
-
 
   document
     .getElementById(
@@ -3218,13 +2423,9 @@ function showOppositeCard(
       () => {
 
         oppositeIndex++;
-
-        showOppositeCard(
-          direction
-        );
+        showOppositeCard(direction);
       }
     );
-
 
   document
     .getElementById(
@@ -3239,98 +2440,19 @@ function showOppositeCard(
         );
 
         oppositeIndex++;
-
-        showOppositeCard(
-          direction
-        );
+        showOppositeCard(direction);
       }
-    );
-
-
-  document
-    .getElementById(
-      "quit-opposites"
-    )
-    .addEventListener(
-      "click",
-      () =>
-        showOppositeDirectionChoice(
-          currentChapter
-        )
-    );
-}
-
-
-function showOppositeFinished(
-  direction
-) {
-
-  container.innerHTML = `
-    <div class="review-box">
-
-      <div class="subject-icon">
-        🎉
-      </div>
-
-      <div class="review-question">
-        Contraires terminés !
-      </div>
-
-      <button
-        id="restart-opposites"
-        class="main-button"
-      >
-        Recommencer
-      </button>
-
-      <button
-        id="back-opposites"
-        class="secondary-button"
-      >
-        Retour
-      </button>
-
-    </div>
-  `;
-
-
-  document
-    .getElementById(
-      "restart-opposites"
-    )
-    .addEventListener(
-      "click",
-      () =>
-        startOppositeCards(
-          currentChapter,
-          direction
-        )
-    );
-
-
-  document
-    .getElementById(
-      "back-opposites"
-    )
-    .addEventListener(
-      "click",
-      () =>
-        showFrenchVocabModes(
-          currentChapter
-        )
     );
 }
 
 
 // ============================================================
-// RETOUR GENERIQUE AUX CHAPITRES
+// RETOUR CHAPITRE
 // ============================================================
 
 function goBackToChapterList() {
 
-  if (
-    navigationStack.length === 0
-  ) {
+  if (navigationStack.length === 0) {
 
     renderChapterLevel(null);
 
@@ -3364,7 +2486,6 @@ function showDirectionChoice(mode) {
 
   container.innerHTML = "";
 
-
   addBackButton(
     () =>
       showModes(
@@ -3372,19 +2493,11 @@ function showDirectionChoice(mode) {
       )
   );
 
-
   let forwardTitle =
     "Sens normal";
 
   let reverseTitle =
     "Sens inverse";
-
-  let forwardDescription =
-    "Question → réponse";
-
-  let reverseDescription =
-    "Réponse → question";
-
 
   if (
     currentSubject?.name === "Anglais"
@@ -3395,14 +2508,7 @@ function showDirectionChoice(mode) {
 
     reverseTitle =
       "Français → Anglais";
-
-    forwardDescription =
-      "Ex. mother → mère";
-
-    reverseDescription =
-      "Ex. mère → mother";
   }
-
 
   if (
     currentSubject?.name === "Allemand"
@@ -3415,41 +2521,26 @@ function showDirectionChoice(mode) {
       "Français → Allemand";
   }
 
-
   const choices = [
 
     {
       icon: "➡️",
-      title:
-        forwardTitle,
-      description:
-        forwardDescription,
-      direction:
-        "forward"
+      title: forwardTitle,
+      direction: "forward"
     },
 
     {
       icon: "⬅️",
-      title:
-        reverseTitle,
-      description:
-        reverseDescription,
-      direction:
-        "reverse"
+      title: reverseTitle,
+      direction: "reverse"
     },
 
     {
       icon: "🔀",
-      title:
-        "Les deux",
-      description:
-        "Mélange les deux sens",
-      direction:
-        "both"
+      title: "Les deux",
+      direction: "both"
     }
-
   ];
-
 
   choices.forEach(choice => {
 
@@ -3459,7 +2550,6 @@ function showDirectionChoice(mode) {
     card.className =
       "subject-card";
 
-
     card.innerHTML = `
       <div class="subject-icon">
         ${choice.icon}
@@ -3468,20 +2558,13 @@ function showDirectionChoice(mode) {
       <div class="subject-name">
         ${choice.title}
       </div>
-
-      <div class="mode-description">
-        ${choice.description}
-      </div>
     `;
-
 
     card.addEventListener(
       "click",
       () => {
 
-        if (
-          mode === "review"
-        ) {
+        if (mode === "review") {
 
           startReview(
             currentChapter,
@@ -3498,39 +2581,24 @@ function showDirectionChoice(mode) {
       }
     );
 
-
-    container.appendChild(
-      card
-    );
+    container.appendChild(card);
   });
 }
 
 
 // ============================================================
-// CHARGEMENT DES CARTES
+// CHARGEMENT CARTES
 // ============================================================
 
-async function loadCards(
-  chapter
-) {
+async function loadCards(chapter) {
 
   const { data, error } =
     await supabaseClient
       .from("cards")
       .select("*")
-      .eq(
-        "chapter_id",
-        chapter.id
-      )
-      .eq(
-        "active",
-        true
-      )
-      .order(
-        "sort_order",
-        { ascending: true }
-      );
-
+      .eq("chapter_id", chapter.id)
+      .eq("active", true)
+      .order("sort_order");
 
   if (error) {
 
@@ -3542,11 +2610,7 @@ async function loadCards(
     return null;
   }
 
-
-  if (
-    !data ||
-    data.length === 0
-  ) {
+  if (!data || data.length === 0) {
 
     container.innerHTML = `
       <div class="review-box">
@@ -3555,40 +2619,18 @@ async function loadCards(
           Aucun contenu pour le moment.
         </div>
 
-        <button
-          id="empty-back"
-          class="secondary-button"
-        >
-          ← Retour
-        </button>
-
       </div>
     `;
 
-
-    document
-      .getElementById(
-        "empty-back"
-      )
-      .addEventListener(
-        "click",
-        () =>
-          showModes(
-            chapter
-          )
-      );
-
-
     return null;
   }
-
 
   return data;
 }
 
 
 // ============================================================
-// CONSTRUCTION DES QUESTIONS
+// QUESTIONS BIDIRECTIONNELLES
 // ============================================================
 
 function buildQuestions(
@@ -3598,7 +2640,6 @@ function buildQuestions(
 
   const questions = [];
 
-
   cards.forEach(card => {
 
     if (
@@ -3607,16 +2648,12 @@ function buildQuestions(
     ) {
 
       questions.push({
-
         question:
           card.question,
-
         answer:
           card.answer
-
       });
     }
-
 
     if (
       (
@@ -3628,17 +2665,13 @@ function buildQuestions(
     ) {
 
       questions.push({
-
         question:
           card.reverse_question,
-
         answer:
           card.reverse_answer
-
       });
     }
   });
-
 
   return questions;
 }
@@ -3653,23 +2686,10 @@ async function startReview(
   direction
 ) {
 
-  title.textContent =
-    chapter.name;
-
-  subtitle.textContent =
-    "Mode Révision";
-
-  container.innerHTML =
-    "<p>Chargement...</p>";
-
-
   const cards =
-    await loadCards(
-      chapter
-    );
+    await loadCards(chapter);
 
   if (!cards) return;
-
 
   reviewQuestions =
     buildQuestions(
@@ -3677,50 +2697,31 @@ async function startReview(
       direction
     );
 
-
   shuffleArray(
     reviewQuestions
   );
 
-
   currentQuestionIndex = 0;
 
-
-  showReviewQuestion(
-    direction
-  );
+  showReviewQuestion(direction);
 }
 
 
-function showReviewQuestion(
-  direction
-) {
+function showReviewQuestion(direction) {
 
   if (
     currentQuestionIndex >=
     reviewQuestions.length
   ) {
 
-    showReviewFinished(
-      direction
-    );
-
+    showReviewFinished(direction);
     return;
   }
-
 
   const current =
     reviewQuestions[
       currentQuestionIndex
     ];
-
-
-  title.textContent =
-    currentChapter.name;
-
-  subtitle.textContent =
-    `Question ${currentQuestionIndex + 1} sur ${reviewQuestions.length}`;
-
 
   container.innerHTML = `
     <div class="review-box">
@@ -3731,14 +2732,12 @@ function showReviewQuestion(
         )}
       </div>
 
-
       <button
         id="show-answer"
         class="main-button"
       >
         Voir la réponse
       </button>
-
 
       <div
         id="answer-area"
@@ -3750,7 +2749,6 @@ function showReviewQuestion(
             current.answer
           )}
         </div>
-
 
         <div class="review-actions">
 
@@ -3772,17 +2770,8 @@ function showReviewQuestion(
 
       </div>
 
-
-      <button
-        id="quit-review"
-        class="secondary-button review-back-button"
-      >
-        ← Quitter
-      </button>
-
     </div>
   `;
-
 
   document
     .getElementById(
@@ -3796,8 +2785,7 @@ function showReviewQuestion(
           .getElementById(
             "answer-area"
           )
-          .classList
-          .remove(
+          .classList.remove(
             "hidden"
           );
 
@@ -3805,13 +2793,11 @@ function showReviewQuestion(
           .getElementById(
             "show-answer"
           )
-          .classList
-          .add(
+          .classList.add(
             "hidden"
           );
       }
     );
-
 
   document
     .getElementById(
@@ -3822,13 +2808,9 @@ function showReviewQuestion(
       () => {
 
         currentQuestionIndex++;
-
-        showReviewQuestion(
-          direction
-        );
+        showReviewQuestion(direction);
       }
     );
-
 
   document
     .getElementById(
@@ -3839,48 +2821,17 @@ function showReviewQuestion(
       () => {
 
         reviewQuestions.push(
-          reviewQuestions[
-            currentQuestionIndex
-          ]
+          current
         );
 
         currentQuestionIndex++;
-
-        showReviewQuestion(
-          direction
-        );
+        showReviewQuestion(direction);
       }
-    );
-
-
-  document
-    .getElementById(
-      "quit-review"
-    )
-    .addEventListener(
-      "click",
-      () =>
-        showModes(
-          currentChapter
-        )
     );
 }
 
 
-// ============================================================
-// FIN REVISION
-// ============================================================
-
-function showReviewFinished(
-  direction
-) {
-
-  title.textContent =
-    currentChapter.name;
-
-  subtitle.textContent =
-    "Révision terminée";
-
+function showReviewFinished(direction) {
 
   container.innerHTML = `
     <div class="review-box">
@@ -3894,59 +2845,14 @@ function showReviewFinished(
       </div>
 
       <button
-        id="restart-review"
-        class="main-button"
-      >
-        Nouvelle révision
-      </button>
-
-      <button
         id="back-review"
-        class="secondary-button"
+        class="main-button"
       >
         Retour
       </button>
 
     </div>
   `;
-
-
-  document
-    .getElementById(
-      "restart-review"
-    )
-    .addEventListener(
-      "click",
-      () => {
-
-        if (
-          currentChapter.content_type ===
-          "flags"
-        ) {
-
-          startFlagReview(
-            currentChapter
-          );
-
-        } else if (
-          currentChapter.content_type ===
-          "map"
-        ) {
-
-          startMapReview(
-            currentChapter
-          );
-
-        } else {
-
-          startReview(
-            currentChapter,
-            direction
-          );
-        }
-      }
-    );
-
 
   document
     .getElementById(
@@ -3963,7 +2869,7 @@ function showReviewFinished(
 
 
 // ============================================================
-// TEST ECRIT GENERIQUE
+// TEST GENERIQUE
 // ============================================================
 
 async function startTest(
@@ -3975,31 +2881,14 @@ async function startTest(
     chapter.test_mode === "qcm"
   ) {
 
-    startQcmTest(
-      chapter
-    );
-
+    startQcmTest(chapter);
     return;
   }
 
-
-  title.textContent =
-    chapter.name;
-
-  subtitle.textContent =
-    "Test écrit";
-
-  container.innerHTML =
-    "<p>Chargement...</p>";
-
-
   const cards =
-    await loadCards(
-      chapter
-    );
+    await loadCards(chapter);
 
   if (!cards) return;
-
 
   testQuestions =
     buildQuestions(
@@ -4007,11 +2896,9 @@ async function startTest(
       direction
     );
 
-
   shuffleArray(
     testQuestions
   );
-
 
   testQuestions =
     testQuestions.slice(
@@ -4019,20 +2906,14 @@ async function startTest(
       20
     );
 
-
   currentTestIndex = 0;
   testScore = 0;
 
-
-  showWrittenTestQuestion(
-    direction
-  );
+  showWrittenTestQuestion(direction);
 }
 
 
-function showWrittenTestQuestion(
-  direction
-) {
+function showWrittenTestQuestion(direction) {
 
   if (
     currentTestIndex >=
@@ -4043,55 +2924,13 @@ function showWrittenTestQuestion(
     return;
   }
 
-
   const current =
     testQuestions[
       currentTestIndex
     ];
 
-
-  const progress =
-    ((currentTestIndex + 1) /
-      testQuestions.length) *
-    100;
-
-
-  title.textContent =
-    currentChapter.name;
-
-  subtitle.textContent =
-    "Test écrit";
-
-
   container.innerHTML = `
     <div class="review-box">
-
-      <div class="qcm-topbar">
-
-        <div class="qcm-counter">
-          Question ${currentTestIndex + 1}
-
-          <span>
-            sur ${testQuestions.length}
-          </span>
-        </div>
-
-        <div class="qcm-score">
-          ⭐ ${testScore}
-        </div>
-
-      </div>
-
-
-      <div class="qcm-progress">
-
-        <div
-          class="qcm-progress-bar"
-          style="width:${progress}%"
-        ></div>
-
-      </div>
-
 
       <div class="review-question">
         ${escapeHtml(
@@ -4099,12 +2938,10 @@ function showWrittenTestQuestion(
         )}
       </div>
 
-
       <input
         id="written-answer"
         type="text"
         autocomplete="off"
-        autocapitalize="none"
         spellcheck="false"
         placeholder="Écris ta réponse"
         style="
@@ -4117,7 +2954,6 @@ function showWrittenTestQuestion(
         "
       >
 
-
       <button
         id="validate-written"
         class="main-button"
@@ -4125,17 +2961,14 @@ function showWrittenTestQuestion(
         Valider
       </button>
 
-
       <div
         id="written-feedback"
         class="hidden"
         style="
-          margin-top:22px;
-          font-size:19px;
+          margin-top:20px;
           font-weight:700;
         "
       ></div>
-
 
       <button
         id="next-written"
@@ -4145,45 +2978,25 @@ function showWrittenTestQuestion(
         Question suivante
       </button>
 
-
-      <button
-        id="quit-written"
-        class="secondary-button"
-      >
-        ← Quitter
-      </button>
-
     </div>
   `;
-
 
   const input =
     document.getElementById(
       "written-answer"
     );
 
-
   input.focus();
-
 
   const validate = () => {
 
-    const value =
-      input.value.trim();
-
-
-    if (!value) return;
-
-
     const correct =
       isAcceptedWrittenAnswer(
-        value,
+        input.value,
         current.answer
       );
 
-
     input.disabled = true;
-
 
     document
       .getElementById(
@@ -4193,7 +3006,6 @@ function showWrittenTestQuestion(
         "hidden"
       );
 
-
     document
       .getElementById(
         "next-written"
@@ -4202,19 +3014,14 @@ function showWrittenTestQuestion(
         "hidden"
       );
 
-
     const feedback =
       document.getElementById(
         "written-feedback"
       );
 
-
-    feedback
-      .classList
-      .remove(
-        "hidden"
-      );
-
+    feedback.classList.remove(
+      "hidden"
+    );
 
     if (correct) {
 
@@ -4242,7 +3049,6 @@ function showWrittenTestQuestion(
     }
   };
 
-
   document
     .getElementById(
       "validate-written"
@@ -4251,32 +3057,6 @@ function showWrittenTestQuestion(
       "click",
       validate
     );
-
-
-  input.addEventListener(
-    "keydown",
-    event => {
-
-      if (
-        event.key !== "Enter"
-      ) return;
-
-
-      if (!input.disabled) {
-
-        validate();
-
-      } else {
-
-        currentTestIndex++;
-
-        showWrittenTestQuestion(
-          direction
-        );
-      }
-    }
-  );
-
 
   document
     .getElementById(
@@ -4287,24 +3067,8 @@ function showWrittenTestQuestion(
       () => {
 
         currentTestIndex++;
-
-        showWrittenTestQuestion(
-          direction
-        );
+        showWrittenTestQuestion(direction);
       }
-    );
-
-
-  document
-    .getElementById(
-      "quit-written"
-    )
-    .addEventListener(
-      "click",
-      () =>
-        showModes(
-          currentChapter
-        )
     );
 }
 
@@ -4313,27 +3077,12 @@ function showWrittenTestQuestion(
 // QCM
 // ============================================================
 
-async function startQcmTest(
-  chapter
-) {
-
-  title.textContent =
-    chapter.name;
-
-  subtitle.textContent =
-    "Test QCM";
-
-  container.innerHTML =
-    "<p>Chargement...</p>";
-
+async function startQcmTest(chapter) {
 
   const cards =
-    await loadCards(
-      chapter
-    );
+    await loadCards(chapter);
 
   if (!cards) return;
-
 
   testQuestions =
     cards
@@ -4359,22 +3108,13 @@ async function startQcmTest(
 
       }));
 
-
-  shuffleArray(
-    testQuestions
-  );
-
+  shuffleArray(testQuestions);
 
   testQuestions =
-    testQuestions.slice(
-      0,
-      20
-    );
-
+    testQuestions.slice(0, 20);
 
   currentTestIndex = 0;
   testScore = 0;
-
 
   showQcmQuestion();
 }
@@ -4391,57 +3131,18 @@ function showQcmQuestion() {
     return;
   }
 
-
   const current =
     testQuestions[
       currentTestIndex
     ];
 
-
   const options =
     [...current.options];
 
-
-  shuffleArray(
-    options
-  );
-
-
-  const progress =
-    ((currentTestIndex + 1) /
-      testQuestions.length) *
-    100;
-
+  shuffleArray(options);
 
   container.innerHTML = `
-    <div class="review-box qcm-card">
-
-      <div class="qcm-topbar">
-
-        <div class="qcm-counter">
-          Question ${currentTestIndex + 1}
-
-          <span>
-            sur ${testQuestions.length}
-          </span>
-        </div>
-
-        <div class="qcm-score">
-          ⭐ ${testScore}
-        </div>
-
-      </div>
-
-
-      <div class="qcm-progress">
-
-        <div
-          class="qcm-progress-bar"
-          style="width:${progress}%"
-        ></div>
-
-      </div>
-
+    <div class="review-box">
 
       <div class="review-question">
         ${escapeHtml(
@@ -4449,42 +3150,20 @@ function showQcmQuestion() {
         )}
       </div>
 
-
       <div class="qcm-grid">
 
         ${options.map(
-          (option, index) => `
-
+          option => `
             <button
               class="qcm-choice"
               data-answer="${encodeURIComponent(option)}"
             >
-
-              <span class="qcm-letter">
-                ${["A", "B", "C", "D"][index]}
-              </span>
-
-              <span>
-                ${escapeHtml(option)}
-              </span>
-
+              ${escapeHtml(option)}
             </button>
-
           `
         ).join("")}
 
       </div>
-
-
-      <div
-        id="qcm-feedback"
-        class="hidden"
-        style="
-          margin-top:20px;
-          font-weight:700;
-        "
-      ></div>
-
 
       <button
         id="qcm-next"
@@ -4494,17 +3173,8 @@ function showQcmQuestion() {
         Question suivante
       </button>
 
-
-      <button
-        id="quit-qcm"
-        class="secondary-button"
-      >
-        ← Quitter
-      </button>
-
     </div>
   `;
-
 
   document
     .querySelectorAll(
@@ -4514,14 +3184,61 @@ function showQcmQuestion() {
 
       button.addEventListener(
         "click",
-        () =>
-          answerQcm(
-            button,
+        () => {
+
+          const selected =
+            decodeURIComponent(
+              button.dataset.answer
+            );
+
+          document
+            .querySelectorAll(
+              ".qcm-choice"
+            )
+            .forEach(b => {
+
+              b.disabled = true;
+
+              const answer =
+                decodeURIComponent(
+                  b.dataset.answer
+                );
+
+              if (
+                answer ===
+                current.answer
+              ) {
+
+                b.classList.add(
+                  "qcm-correct"
+                );
+              }
+            });
+
+          if (
+            selected ===
             current.answer
-          )
+          ) {
+
+            testScore++;
+
+          } else {
+
+            button.classList.add(
+              "qcm-wrong"
+            );
+          }
+
+          document
+            .getElementById(
+              "qcm-next"
+            )
+            .classList.remove(
+              "hidden"
+            );
+        }
       );
     });
-
 
   document
     .getElementById(
@@ -4532,178 +3249,40 @@ function showQcmQuestion() {
       () => {
 
         currentTestIndex++;
-
         showQcmQuestion();
       }
     );
-
-
-  document
-    .getElementById(
-      "quit-qcm"
-    )
-    .addEventListener(
-      "click",
-      () =>
-        showModes(
-          currentChapter
-        )
-    );
-}
-
-
-function answerQcm(
-  selectedButton,
-  correctAnswer
-) {
-
-  const buttons =
-    document.querySelectorAll(
-      ".qcm-choice"
-    );
-
-
-  buttons.forEach(button => {
-
-    button.disabled = true;
-
-
-    const answer =
-      decodeURIComponent(
-        button.dataset.answer
-      );
-
-
-    if (
-      answer ===
-      correctAnswer
-    ) {
-
-      button
-        .classList
-        .add(
-          "qcm-correct"
-        );
-    }
-  });
-
-
-  const selected =
-    decodeURIComponent(
-      selectedButton.dataset.answer
-    );
-
-
-  const feedback =
-    document.getElementById(
-      "qcm-feedback"
-    );
-
-
-  feedback
-    .classList
-    .remove(
-      "hidden"
-    );
-
-
-  if (
-    selected ===
-    correctAnswer
-  ) {
-
-    testScore++;
-
-    feedback.textContent =
-      "✅ Correct !";
-
-    feedback.style.color =
-      "#15803d";
-
-  } else {
-
-    selectedButton
-      .classList
-      .add(
-        "qcm-wrong"
-      );
-
-
-    feedback.innerHTML = `
-      ❌ Réponse :
-      <strong>
-        ${escapeHtml(
-          correctAnswer
-        )}
-      </strong>
-    `;
-
-    feedback.style.color =
-      "#b91c1c";
-  }
-
-
-  document
-    .getElementById(
-      "qcm-next"
-    )
-    .classList
-    .remove(
-      "hidden"
-    );
 }
 
 
 // ============================================================
-// DRAPEAUX - REVISION
+// DRAPEAUX
 // ============================================================
 
-async function startFlagReview(
-  chapter
-) {
-
-  title.textContent =
-    chapter.name;
-
-  subtitle.textContent =
-    "Drapeau → pays";
-
-  container.innerHTML =
-    "<p>Chargement...</p>";
-
+async function startFlagReview(chapter) {
 
   const cards =
-    await loadCards(
-      chapter
-    );
+    await loadCards(chapter);
 
   if (!cards) return;
 
-
   reviewQuestions =
     cards
-      .filter(
-        card =>
-          card.image_url
+      .filter(card =>
+        card.image_url
       )
       .map(card => ({
-
         answer:
           card.answer,
-
         image_url:
           card.image_url
-
       }));
-
 
   shuffleArray(
     reviewQuestions
   );
 
-
   currentQuestionIndex = 0;
-
 
   showFlagReviewQuestion();
 }
@@ -4716,23 +3295,14 @@ function showFlagReviewQuestion() {
     reviewQuestions.length
   ) {
 
-    showReviewFinished(
-      "forward"
-    );
-
+    showReviewFinished("forward");
     return;
   }
-
 
   const current =
     reviewQuestions[
       currentQuestionIndex
     ];
-
-
-  subtitle.textContent =
-    `Question ${currentQuestionIndex + 1} sur ${reviewQuestions.length}`;
-
 
   container.innerHTML = `
     <div class="review-box">
@@ -4741,17 +3311,14 @@ function showFlagReviewQuestion() {
         Quel pays correspond à ce drapeau ?
       </div>
 
-
       <div class="flag-display">
 
         <img
           src="${current.image_url}"
           class="flag-main-image"
-          alt="Drapeau"
         >
 
       </div>
-
 
       <button
         id="show-flag"
@@ -4759,7 +3326,6 @@ function showFlagReviewQuestion() {
       >
         Voir la réponse
       </button>
-
 
       <div
         id="flag-answer"
@@ -4771,7 +3337,6 @@ function showFlagReviewQuestion() {
             current.answer
           )}
         </div>
-
 
         <div class="review-actions">
 
@@ -4793,17 +3358,8 @@ function showFlagReviewQuestion() {
 
       </div>
 
-
-      <button
-        id="quit-flag-review"
-        class="secondary-button review-back-button"
-      >
-        ← Quitter
-      </button>
-
     </div>
   `;
-
 
   document
     .getElementById(
@@ -4817,8 +3373,7 @@ function showFlagReviewQuestion() {
           .getElementById(
             "flag-answer"
           )
-          .classList
-          .remove(
+          .classList.remove(
             "hidden"
           );
 
@@ -4826,13 +3381,11 @@ function showFlagReviewQuestion() {
           .getElementById(
             "show-flag"
           )
-          .classList
-          .add(
+          .classList.add(
             "hidden"
           );
       }
     );
-
 
   document
     .getElementById(
@@ -4843,11 +3396,9 @@ function showFlagReviewQuestion() {
       () => {
 
         currentQuestionIndex++;
-
         showFlagReviewQuestion();
       }
     );
-
 
   document
     .getElementById(
@@ -4862,67 +3413,30 @@ function showFlagReviewQuestion() {
         );
 
         currentQuestionIndex++;
-
         showFlagReviewQuestion();
       }
-    );
-
-
-  document
-    .getElementById(
-      "quit-flag-review"
-    )
-    .addEventListener(
-      "click",
-      () =>
-        showModes(
-          currentChapter
-        )
     );
 }
 
 
-// ============================================================
-// DRAPEAUX - TEST
-// ============================================================
-
-async function startFlagTest(
-  chapter
-) {
-
-  title.textContent =
-    chapter.name;
-
-  subtitle.textContent =
-    "Test drapeaux";
-
-  container.innerHTML =
-    "<p>Chargement...</p>";
-
+async function startFlagTest(chapter) {
 
   const cards =
-    await loadCards(
-      chapter
-    );
+    await loadCards(chapter);
 
   if (!cards) return;
 
-
   currentMapCards =
-    cards.filter(
-      card =>
-        card.image_url
+    cards.filter(card =>
+      card.image_url
     );
-
 
   testQuestions =
     [...currentMapCards];
 
-
   shuffleArray(
     testQuestions
   );
-
 
   testQuestions =
     testQuestions.slice(
@@ -4930,10 +3444,8 @@ async function startFlagTest(
       20
     );
 
-
   currentTestIndex = 0;
   testScore = 0;
-
 
   showFlagTestQuestion();
 }
@@ -4950,68 +3462,36 @@ function showFlagTestQuestion() {
     return;
   }
 
-
   const correct =
     testQuestions[
       currentTestIndex
     ];
 
-
   const wrong =
-    currentMapCards
-      .filter(
-        card =>
-          card.id !== correct.id
-      );
+    currentMapCards.filter(
+      card =>
+        card.id !== correct.id
+    );
 
-
-  shuffleArray(
-    wrong
-  );
-
+  shuffleArray(wrong);
 
   const options = [
     correct,
     ...wrong.slice(0, 3)
   ];
 
-
-  shuffleArray(
-    options
-  );
-
+  shuffleArray(options);
 
   container.innerHTML = `
     <div class="review-box">
 
-      <div class="qcm-topbar">
-
-        <div class="qcm-counter">
-          Question ${currentTestIndex + 1}
-
-          <span>
-            sur ${testQuestions.length}
-          </span>
-        </div>
-
-        <div class="qcm-score">
-          ⭐ ${testScore}
-        </div>
-
-      </div>
-
-
       <div class="review-question">
         Quel est le drapeau de :
         <br>
-
-        <strong>
-          ${escapeHtml(
-            correct.answer
-          )}
-        </strong>
+        ${escapeHtml(
+          correct.answer
+        )}
       </div>
-
 
       <div class="flag-qcm-grid">
 
@@ -5020,47 +3500,24 @@ function showFlagTestQuestion() {
             class="flag-choice-button"
             data-id="${card.id}"
           >
-
             <img
               src="${card.image_url}"
               alt="Drapeau"
             >
-
           </button>
         `).join("")}
 
       </div>
 
-
-      <div
-        id="flag-feedback"
-        class="hidden"
-        style="
-          margin-top:20px;
-          font-weight:700;
-        "
-      ></div>
-
-
       <button
         id="flag-next"
         class="main-button hidden"
-        style="margin-top:20px;"
       >
         Question suivante
       </button>
 
-
-      <button
-        id="quit-flag-test"
-        class="secondary-button"
-      >
-        ← Quitter
-      </button>
-
     </div>
   `;
-
 
   document
     .querySelectorAll(
@@ -5077,47 +3534,26 @@ function showFlagTestQuestion() {
               button.dataset.id
             );
 
-
           document
             .querySelectorAll(
               ".flag-choice-button"
             )
-            .forEach(
-              currentButton => {
+            .forEach(b => {
 
-                currentButton.disabled =
-                  true;
+              b.disabled = true;
 
+              if (
+                Number(
+                  b.dataset.id
+                ) ===
+                Number(correct.id)
+              ) {
 
-                if (
-                  Number(
-                    currentButton.dataset.id
-                  ) ===
-                  Number(correct.id)
-                ) {
-
-                  currentButton
-                    .classList
-                    .add(
-                      "qcm-correct"
-                    );
-                }
+                b.classList.add(
+                  "qcm-correct"
+                );
               }
-            );
-
-
-          const feedback =
-            document.getElementById(
-              "flag-feedback"
-            );
-
-
-          feedback
-            .classList
-            .remove(
-              "hidden"
-            );
-
+            });
 
           if (
             selected ===
@@ -5126,40 +3562,23 @@ function showFlagTestQuestion() {
 
             testScore++;
 
-            feedback.textContent =
-              "✅ Correct !";
-
-            feedback.style.color =
-              "#15803d";
-
           } else {
 
-            button
-              .classList
-              .add(
-                "qcm-wrong"
-              );
-
-            feedback.textContent =
-              "❌ Mauvais drapeau";
-
-            feedback.style.color =
-              "#b91c1c";
+            button.classList.add(
+              "qcm-wrong"
+            );
           }
-
 
           document
             .getElementById(
               "flag-next"
             )
-            .classList
-            .remove(
+            .classList.remove(
               "hidden"
             );
         }
       );
     });
-
 
   document
     .getElementById(
@@ -5170,70 +3589,36 @@ function showFlagTestQuestion() {
       () => {
 
         currentTestIndex++;
-
         showFlagTestQuestion();
       }
-    );
-
-
-  document
-    .getElementById(
-      "quit-flag-test"
-    )
-    .addEventListener(
-      "click",
-      () =>
-        showModes(
-          currentChapter
-        )
     );
 }
 
 
 // ============================================================
-// CARTE EUROPE - REVISION
+// CARTE EUROPE
 // ============================================================
 
-async function startMapReview(
-  chapter
-) {
-
-  title.textContent =
-    chapter.name;
-
-  subtitle.textContent =
-    "Révision carte";
-
-  container.innerHTML =
-    "<p>Chargement...</p>";
-
+async function startMapReview(chapter) {
 
   const cards =
-    await loadCards(
-      chapter
-    );
+    await loadCards(chapter);
 
   if (!cards) return;
 
-
   currentMapCards =
-    cards.filter(
-      card =>
-        card.map_code
+    cards.filter(card =>
+      card.map_code
     );
-
 
   reviewQuestions =
     [...currentMapCards];
-
 
   shuffleArray(
     reviewQuestions
   );
 
-
   currentQuestionIndex = 0;
-
 
   showMapReviewQuestion();
 }
@@ -5246,29 +3631,19 @@ async function showMapReviewQuestion() {
     reviewQuestions.length
   ) {
 
-    showReviewFinished(
-      "forward"
-    );
-
+    showReviewFinished("forward");
     return;
   }
-
 
   const current =
     reviewQuestions[
       currentQuestionIndex
     ];
 
-
-  subtitle.textContent =
-    `Question ${currentQuestionIndex + 1} sur ${reviewQuestions.length}`;
-
-
   renderMapCard(
     current,
     "review"
   );
-
 
   await loadInteractiveMap(
     current.map_code,
@@ -5277,47 +3652,22 @@ async function showMapReviewQuestion() {
 }
 
 
-// ============================================================
-// CARTE EUROPE - TEST
-// ============================================================
-
-async function startMapTest(
-  chapter
-) {
-
-  title.textContent =
-    chapter.name;
-
-  subtitle.textContent =
-    "Test carte";
-
-  container.innerHTML =
-    "<p>Chargement...</p>";
-
+async function startMapTest(chapter) {
 
   const cards =
-    await loadCards(
-      chapter
-    );
+    await loadCards(chapter);
 
   if (!cards) return;
 
-
   currentMapCards =
-    cards.filter(
-      card =>
-        card.map_code
+    cards.filter(card =>
+      card.map_code
     );
-
 
   testQuestions =
     [...currentMapCards];
 
-
-  shuffleArray(
-    testQuestions
-  );
-
+  shuffleArray(testQuestions);
 
   testQuestions =
     testQuestions.slice(
@@ -5325,10 +3675,8 @@ async function startMapTest(
       20
     );
 
-
   currentTestIndex = 0;
   testScore = 0;
-
 
   showMapTestQuestion();
 }
@@ -5345,18 +3693,15 @@ async function showMapTestQuestion() {
     return;
   }
 
-
   const current =
     testQuestions[
       currentTestIndex
     ];
 
-
   renderMapCard(
     current,
     "test"
   );
-
 
   await loadInteractiveMap(
     current.map_code,
@@ -5365,52 +3710,13 @@ async function showMapTestQuestion() {
 }
 
 
-// ============================================================
-// CARTE - INTERFACE
-// ============================================================
-
 function renderMapCard(
   current,
   mode
 ) {
 
-  const index =
-    mode === "review"
-      ? currentQuestionIndex
-      : currentTestIndex;
-
-
-  const total =
-    mode === "review"
-      ? reviewQuestions.length
-      : testQuestions.length;
-
-
   container.innerHTML = `
     <div class="map-card">
-
-      ${
-        mode === "test"
-          ? `
-            <div class="qcm-topbar">
-
-              <div class="qcm-counter">
-                Question ${index + 1}
-
-                <span>
-                  sur ${total}
-                </span>
-              </div>
-
-              <div class="qcm-score">
-                ⭐ ${testScore}
-              </div>
-
-            </div>
-          `
-          : ""
-      }
-
 
       <div class="map-instruction">
         ${
@@ -5420,13 +3726,11 @@ function renderMapCard(
         }
       </div>
 
-
       <div class="map-country-name">
         ${escapeHtml(
           current.answer
         )}
       </div>
-
 
       <div class="map-controls">
 
@@ -5453,14 +3757,12 @@ function renderMapCard(
 
       </div>
 
-
       <div
         id="map-container"
         class="europe-map-container"
       >
         Chargement...
       </div>
-
 
       <div
         id="map-feedback"
@@ -5469,40 +3771,13 @@ function renderMapCard(
           margin-top:18px;
           text-align:center;
           font-weight:700;
-          font-size:18px;
         "
       ></div>
 
-
-      <button
-        id="quit-map"
-        class="secondary-button"
-        style="margin-top:20px;"
-      >
-        ← Quitter
-      </button>
-
     </div>
   `;
-
-
-  document
-    .getElementById(
-      "quit-map"
-    )
-    .addEventListener(
-      "click",
-      () =>
-        showModes(
-          currentChapter
-        )
-    );
 }
 
-
-// ============================================================
-// CHARGEMENT SVG
-// ============================================================
 
 async function loadInteractiveMap(
   correctCode,
@@ -5514,7 +3789,6 @@ async function loadInteractiveMap(
       "map-container"
     );
 
-
   try {
 
     const response =
@@ -5522,36 +3796,16 @@ async function loadInteractiveMap(
         "europe-map.svg"
       );
 
-
-    if (!response.ok) {
-
-      throw new Error(
-        "europe-map.svg introuvable"
-      );
-    }
-
-
     const svgText =
       await response.text();
 
-
     mapContainer.innerHTML =
       svgText;
-
 
     const svg =
       mapContainer.querySelector(
         "svg"
       );
-
-
-    if (!svg) {
-
-      throw new Error(
-        "SVG invalide"
-      );
-    }
-
 
     prepareEuropeMap(svg);
 
@@ -5563,42 +3817,24 @@ async function loadInteractiveMap(
       mode
     );
 
-
   } catch (error) {
 
     console.error(error);
 
     mapContainer.innerHTML =
-      "<p>Impossible de charger la carte.</p>";
+      "Impossible de charger la carte.";
   }
 }
 
 
-// ============================================================
-// PREPARATION CARTE
-// ============================================================
-
 function prepareEuropeMap(svg) {
 
-  svg.removeAttribute(
-    "width"
-  );
-
-  svg.removeAttribute(
-    "height"
-  );
-
+  svg.removeAttribute("width");
+  svg.removeAttribute("height");
 
   svg.classList.add(
     "interactive-europe-map"
   );
-
-
-  svg.setAttribute(
-    "preserveAspectRatio",
-    "xMidYMid meet"
-  );
-
 
   const allowedCodes =
     currentMapCards.map(
@@ -5608,118 +3844,84 @@ function prepareEuropeMap(svg) {
         ).toUpperCase()
     );
 
+  svg.querySelectorAll(
+    "g[id]"
+  ).forEach(group => {
 
-  svg
-    .querySelectorAll(
-      "g[id]"
-    )
-    .forEach(group => {
+    const code =
+      String(
+        group.id
+      ).toUpperCase();
 
-      const code =
-        String(
-          group.id
-        ).toUpperCase();
+    group.classList.remove(
+      "map-country",
+      "map-country-disabled",
+      "map-country-correct",
+      "map-country-wrong"
+    );
 
+    if (
+      allowedCodes.includes(code)
+    ) {
 
-      group.classList.remove(
-        "map-country",
-        "map-country-disabled",
-        "map-country-correct",
-        "map-country-wrong"
+      group.classList.add(
+        "map-country"
       );
 
+      group.dataset.countryCode =
+        code;
 
-      if (
-        allowedCodes.includes(
-          code
-        )
-      ) {
+    } else {
 
-        group.classList.add(
-          "map-country"
-        );
-
-        group.dataset.countryCode =
-          code;
-
-      } else {
-
-        group.classList.add(
-          "map-country-disabled"
-        );
-      }
-    });
-
+      group.classList.add(
+        "map-country-disabled"
+      );
+    }
+  });
 
   createMapHitAreas(
     svg,
     allowedCodes
   );
 
-
-  setInitialEuropeView(
-    svg
-  );
+  setInitialEuropeView(svg);
 }
 
-
-// ============================================================
-// CADRAGE EUROPE
-// ============================================================
 
 function setInitialEuropeView(svg) {
 
   const viewBox = {
-
     x: 430,
     y: 55,
     width: 235,
     height: 205
-
   };
-
 
   mapOriginalViewBox = {
     ...viewBox
   };
 
-
   mapCurrentViewBox = {
     ...viewBox
   };
 
-
-  applyMapViewBox(
-    svg
-  );
+  applyMapViewBox(svg);
 }
 
-
-// ============================================================
-// PETITS PAYS
-// ============================================================
 
 function createMapHitAreas(
   svg,
   allowedCodes
 ) {
 
-  const namespace =
+  const ns =
     "http://www.w3.org/2000/svg";
-
 
   const overlay =
     document.createElementNS(
-      namespace,
+      ns,
       "g"
     );
-
-
-  overlay.setAttribute(
-    "id",
-    "map-hit-areas"
-  );
-
 
   const smallCodes = [
     "AD",
@@ -5731,111 +3933,64 @@ function createMapHitAreas(
     "XK"
   ];
 
-
   smallCodes.forEach(code => {
 
     if (
-      !allowedCodes.includes(
-        code
-      )
-    ) {
-      return;
-    }
-
+      !allowedCodes.includes(code)
+    ) return;
 
     const country =
       svg.querySelector(
         `g[id="${code}"]`
       );
 
+    if (!country) return;
 
-    if (!country) {
-      return;
-    }
+    const box =
+      country.getBBox();
 
-
-    try {
-
-      const box =
-        country.getBBox();
-
-
-      const centerX =
-        box.x +
-        box.width / 2;
-
-
-      const centerY =
-        box.y +
-        box.height / 2;
-
-
-      const size = 8;
-
-
-      const hit =
-        document.createElementNS(
-          namespace,
-          "rect"
-        );
-
-
-      hit.setAttribute(
-        "x",
-        centerX -
-        size / 2
+    const hit =
+      document.createElementNS(
+        ns,
+        "rect"
       );
 
-      hit.setAttribute(
-        "y",
-        centerY -
-        size / 2
-      );
+    hit.setAttribute(
+      "x",
+      box.x +
+      box.width / 2 - 4
+    );
 
-      hit.setAttribute(
-        "width",
-        size
-      );
+    hit.setAttribute(
+      "y",
+      box.y +
+      box.height / 2 - 4
+    );
 
-      hit.setAttribute(
-        "height",
-        size
-      );
+    hit.setAttribute(
+      "width",
+      8
+    );
 
-      hit.setAttribute(
-        "class",
-        "map-small-hit"
-      );
+    hit.setAttribute(
+      "height",
+      8
+    );
 
+    hit.setAttribute(
+      "class",
+      "map-small-hit"
+    );
 
-      hit.dataset.countryCode =
-        code;
+    hit.dataset.countryCode =
+      code;
 
-
-      overlay.appendChild(
-        hit
-      );
-
-
-    } catch (error) {
-
-      console.warn(
-        "Zone de clic impossible :",
-        code
-      );
-    }
+    overlay.appendChild(hit);
   });
 
-
-  svg.appendChild(
-    overlay
-  );
+  svg.appendChild(overlay);
 }
 
-
-// ============================================================
-// CLICS CARTE
-// ============================================================
 
 function setupMapClicks(
   svg,
@@ -5848,14 +4003,9 @@ function setupMapClicks(
       correctCode
     ).toUpperCase();
 
-
-  const clickable =
-    svg.querySelectorAll(
-      ".map-country, .map-small-hit"
-    );
-
-
-  clickable.forEach(element => {
+  svg.querySelectorAll(
+    ".map-country, .map-small-hit"
+  ).forEach(element => {
 
     element.addEventListener(
       "click",
@@ -5864,20 +4014,15 @@ function setupMapClicks(
         if (
           svg.dataset.ignoreMapClick ===
           "true"
-        ) {
-          return;
-        }
-
+        ) return;
 
         event.stopPropagation();
-
 
         const clicked =
           String(
             element.dataset.countryCode ||
             element.id
           ).toUpperCase();
-
 
         handleMapAnswer(
           svg,
@@ -5891,10 +4036,6 @@ function setupMapClicks(
 }
 
 
-// ============================================================
-// REPONSE CARTE
-// ============================================================
-
 function handleMapAnswer(
   svg,
   clicked,
@@ -5907,40 +4048,24 @@ function handleMapAnswer(
       "map-feedback"
     );
 
-
   const clickedCountry =
     svg.querySelector(
       `g[id="${clicked}"]`
     );
-
 
   const correctCountry =
     svg.querySelector(
       `g[id="${correct}"]`
     );
 
-
-  svg
-    .querySelectorAll(
-      ".map-country, .map-small-hit"
-    )
-    .forEach(element => {
-
-      element.style.pointerEvents =
-        "none";
-    });
-
-
   if (
     clicked === correct
   ) {
 
     clickedCountry
-      ?.classList
-      .add(
+      ?.classList.add(
         "map-country-correct"
       );
-
 
     feedback.textContent =
       "✅ Correct !";
@@ -5948,30 +4073,21 @@ function handleMapAnswer(
     feedback.style.color =
       "#15803d";
 
-
-    if (
-      mode === "test"
-    ) {
-
+    if (mode === "test") {
       testScore++;
     }
-
 
   } else {
 
     clickedCountry
-      ?.classList
-      .add(
+      ?.classList.add(
         "map-country-wrong"
       );
 
-
     correctCountry
-      ?.classList
-      .add(
+      ?.classList.add(
         "map-country-correct"
       );
-
 
     feedback.textContent =
       "❌ Ce n’était pas ce pays.";
@@ -5979,10 +4095,7 @@ function handleMapAnswer(
     feedback.style.color =
       "#b91c1c";
 
-
-    if (
-      mode === "review"
-    ) {
+    if (mode === "review") {
 
       reviewQuestions.push(
         reviewQuestions[
@@ -5992,85 +4105,47 @@ function handleMapAnswer(
     }
   }
 
-
-  feedback
-    .classList
-    .remove(
-      "hidden"
-    );
-
+  feedback.classList.remove(
+    "hidden"
+  );
 
   setTimeout(
     () => {
 
-      if (
-        mode === "review"
-      ) {
+      if (mode === "review") {
 
         currentQuestionIndex++;
-
         showMapReviewQuestion();
 
       } else {
 
         currentTestIndex++;
-
         showMapTestQuestion();
       }
-
     },
-    1100
+    1000
   );
 }
 
 
 // ============================================================
-// NAVIGATION CARTE
+// ZOOM / PAN CARTE
 // ============================================================
 
-function setupMapNavigation(
-  svg
-) {
+function setupMapNavigation(svg) {
 
-  setupMapZoom(
-    svg
-  );
-
-  setupMapPan(
-    svg
-  );
-
-  setupMouseWheelZoom(
-    svg
-  );
+  setupMapZoom(svg);
+  setupMapPan(svg);
+  setupMouseWheelZoom(svg);
 }
 
-
-// ============================================================
-// ZOOM CARTE
-// ============================================================
 
 function setupMapZoom(svg) {
 
-  const zoomIn =
-    document.getElementById(
+  document
+    .getElementById(
       "map-zoom-in"
-    );
-
-
-  const zoomOut =
-    document.getElementById(
-      "map-zoom-out"
-    );
-
-
-  const reset =
-    document.getElementById(
-      "map-reset"
-    );
-
-
-  zoomIn
+    )
     ?.addEventListener(
       "click",
       () =>
@@ -6080,8 +4155,10 @@ function setupMapZoom(svg) {
         )
     );
 
-
-  zoomOut
+  document
+    .getElementById(
+      "map-zoom-out"
+    )
     ?.addEventListener(
       "click",
       () =>
@@ -6091,8 +4168,10 @@ function setupMapZoom(svg) {
         )
     );
 
-
-  reset
+  document
+    .getElementById(
+      "map-reset"
+    )
     ?.addEventListener(
       "click",
       () => {
@@ -6101,17 +4180,13 @@ function setupMapZoom(svg) {
           ...mapOriginalViewBox
         };
 
-        applyMapViewBox(
-          svg
-        );
+        applyMapViewBox(svg);
       }
     );
 }
 
 
-function setupMouseWheelZoom(
-  svg
-) {
+function setupMouseWheelZoom(svg) {
 
   svg.addEventListener(
     "wheel",
@@ -6119,14 +4194,12 @@ function setupMouseWheelZoom(
 
       event.preventDefault();
 
-
       zoomMap(
         svg,
         event.deltaY < 0
           ? 0.9
           : 1.1
       );
-
     },
     {
       passive: false
@@ -6135,46 +4208,30 @@ function setupMouseWheelZoom(
 }
 
 
-function zoomMap(
-  svg,
-  factor
-) {
-
-  if (
-    !mapCurrentViewBox
-  ) return;
-
+function zoomMap(svg, factor) {
 
   const centerX =
     mapCurrentViewBox.x +
     mapCurrentViewBox.width / 2;
 
-
   const centerY =
     mapCurrentViewBox.y +
     mapCurrentViewBox.height / 2;
-
 
   const width =
     mapCurrentViewBox.width *
     factor;
 
-
   const height =
     mapCurrentViewBox.height *
     factor;
 
-
   if (
     width < 80 ||
     width > 360
-  ) {
-    return;
-  }
-
+  ) return;
 
   mapCurrentViewBox = {
-
     x:
       centerX -
       width / 2,
@@ -6187,39 +4244,26 @@ function zoomMap(
     height
   };
 
-
   clampMapViewBox();
 
-  applyMapViewBox(
-    svg
-  );
+  applyMapViewBox(svg);
 }
 
-
-// ============================================================
-// PAN / DRAG CARTE
-// ============================================================
 
 function setupMapPan(svg) {
 
   let pointerDown = false;
   let dragging = false;
-
   let startX = 0;
   let startY = 0;
-
   let startViewBox = null;
   let activePointerId = null;
-
 
   svg.addEventListener(
     "pointerdown",
     event => {
 
-      if (
-        !mapCurrentViewBox
-      ) return;
-
+      if (!mapCurrentViewBox) return;
 
       pointerDown = true;
       dragging = false;
@@ -6239,7 +4283,6 @@ function setupMapPan(svg) {
     }
   );
 
-
   svg.addEventListener(
     "pointermove",
     event => {
@@ -6249,30 +4292,19 @@ function setupMapPan(svg) {
         event.pointerId !==
         activePointerId ||
         !startViewBox
-      ) {
-        return;
-      }
-
+      ) return;
 
       const deltaPixelsX =
-        event.clientX -
-        startX;
-
+        event.clientX - startX;
 
       const deltaPixelsY =
-        event.clientY -
-        startY;
-
+        event.clientY - startY;
 
       if (
         !dragging &&
         (
-          Math.abs(
-            deltaPixelsX
-          ) > 6 ||
-          Math.abs(
-            deltaPixelsY
-          ) > 6
+          Math.abs(deltaPixelsX) > 6 ||
+          Math.abs(deltaPixelsY) > 6
         )
       ) {
 
@@ -6281,7 +4313,6 @@ function setupMapPan(svg) {
         svg.classList.add(
           "map-dragging"
         );
-
 
         try {
 
@@ -6292,26 +4323,17 @@ function setupMapPan(svg) {
         } catch (error) {}
       }
 
-
-      if (!dragging) {
-        return;
-      }
-
+      if (!dragging) return;
 
       event.preventDefault();
-
 
       const rect =
         svg.getBoundingClientRect();
 
-
       if (
         rect.width === 0 ||
         rect.height === 0
-      ) {
-        return;
-      }
-
+      ) return;
 
       const deltaMapX =
         deltaPixelsX *
@@ -6320,7 +4342,6 @@ function setupMapPan(svg) {
           rect.width
         );
 
-
       const deltaMapY =
         deltaPixelsY *
         (
@@ -6328,9 +4349,7 @@ function setupMapPan(svg) {
           rect.height
         );
 
-
       mapCurrentViewBox = {
-
         x:
           startViewBox.x -
           deltaMapX,
@@ -6346,15 +4365,11 @@ function setupMapPan(svg) {
           startViewBox.height
       };
 
-
       clampMapViewBox();
 
-      applyMapViewBox(
-        svg
-      );
+      applyMapViewBox(svg);
     }
   );
-
 
   const finishPointer =
     event => {
@@ -6362,28 +4377,21 @@ function setupMapPan(svg) {
       if (
         event.pointerId !==
         activePointerId
-      ) {
-        return;
-      }
-
+      ) return;
 
       if (dragging) {
 
         svg.dataset.ignoreMapClick =
           "true";
 
-
         setTimeout(
           () => {
-
             svg.dataset.ignoreMapClick =
               "false";
-
           },
           100
         );
       }
-
 
       try {
 
@@ -6401,25 +4409,21 @@ function setupMapPan(svg) {
 
       } catch (error) {}
 
-
       pointerDown = false;
       dragging = false;
 
       activePointerId = null;
       startViewBox = null;
 
-
       svg.classList.remove(
         "map-dragging"
       );
     };
 
-
   svg.addEventListener(
     "pointerup",
     finishPointer
   );
-
 
   svg.addEventListener(
     "pointercancel",
@@ -6428,16 +4432,7 @@ function setupMapPan(svg) {
 }
 
 
-// ============================================================
-// LIMITES CARTE
-// ============================================================
-
 function clampMapViewBox() {
-
-  if (
-    !mapCurrentViewBox
-  ) return;
-
 
   const minX = 360;
   const maxX = 760;
@@ -6445,64 +4440,29 @@ function clampMapViewBox() {
   const minY = 20;
   const maxY = 315;
 
+  mapCurrentViewBox.x =
+    Math.max(
+      minX,
+      Math.min(
+        mapCurrentViewBox.x,
+        maxX -
+        mapCurrentViewBox.width
+      )
+    );
 
-  if (
-    mapCurrentViewBox.x <
-    minX
-  ) {
-
-    mapCurrentViewBox.x =
-      minX;
-  }
-
-
-  if (
-    mapCurrentViewBox.y <
-    minY
-  ) {
-
-    mapCurrentViewBox.y =
-      minY;
-  }
-
-
-  if (
-    mapCurrentViewBox.x +
-    mapCurrentViewBox.width >
-    maxX
-  ) {
-
-    mapCurrentViewBox.x =
-      maxX -
-      mapCurrentViewBox.width;
-  }
-
-
-  if (
-    mapCurrentViewBox.y +
-    mapCurrentViewBox.height >
-    maxY
-  ) {
-
-    mapCurrentViewBox.y =
-      maxY -
-      mapCurrentViewBox.height;
-  }
+  mapCurrentViewBox.y =
+    Math.max(
+      minY,
+      Math.min(
+        mapCurrentViewBox.y,
+        maxY -
+        mapCurrentViewBox.height
+      )
+    );
 }
 
 
-// ============================================================
-// APPLIQUER VIEWBOX
-// ============================================================
-
-function applyMapViewBox(
-  svg
-) {
-
-  if (
-    !mapCurrentViewBox
-  ) return;
-
+function applyMapViewBox(svg) {
 
   svg.setAttribute(
     "viewBox",
@@ -6512,7 +4472,7 @@ function applyMapViewBox(
 
 
 // ============================================================
-// FIN DE TEST
+// FIN TEST
 // ============================================================
 
 function showTestFinished() {
@@ -6520,98 +4480,39 @@ function showTestFinished() {
   const total =
     testQuestions.length;
 
-
   const percentage =
-    total > 0
+    total
       ? Math.round(
-          (
-            testScore /
-            total
-          ) *
+          testScore /
+          total *
           100
         )
       : 0;
 
-
-  let message =
-    "Continue à t’entraîner 💪";
-
-
-  if (
-    percentage >= 90
-  ) {
-
-    message =
-      "Excellent travail ! 🌟";
-
-  } else if (
-    percentage >= 75
-  ) {
-
-    message =
-      "Très bon résultat ! 👏";
-
-  } else if (
-    percentage >= 60
-  ) {
-
-    message =
-      "Bien joué ! 👍";
-  }
-
-
-  title.textContent =
-    currentChapter.name;
-
-  subtitle.textContent =
-    "Test terminé";
-
-
   container.innerHTML = `
     <div class="review-box">
 
-      <div
-        class="subject-icon"
-        style="font-size:60px;"
-      >
+      <div class="subject-icon">
         🎯
       </div>
-
 
       <div class="review-question">
         ${testScore} / ${total}
       </div>
 
-
-      <div
-        class="review-answer"
-        style="font-size:30px;"
-      >
+      <div class="review-answer">
         ${percentage} %
       </div>
-
-
-      <div
-        class="mode-description"
-        style="
-          font-size:18px;
-          margin-bottom:30px;
-        "
-      >
-        ${message}
-      </div>
-
 
       <button
         id="test-back"
         class="main-button"
       >
-        Retour au chapitre
+        Retour
       </button>
 
     </div>
   `;
-
 
   document
     .getElementById(
@@ -6642,7 +4543,7 @@ function showTestFinished() {
 
 
 // ============================================================
-// VALIDATION REPONSES GENERIQUES
+// REPONSES
 // ============================================================
 
 function isAcceptedWrittenAnswer(
@@ -6651,33 +4552,15 @@ function isAcceptedWrittenAnswer(
 ) {
 
   const normalizedUser =
-    normalizeAnswer(
-      user
-    );
-
+    normalizeAnswer(user);
 
   const normalizedExpected =
-    normalizeAnswer(
-      expected
-    );
-
+    normalizeAnswer(expected);
 
   if (
     normalizedUser ===
     normalizedExpected
-  ) {
-    return true;
-  }
-
-
-  /*
-    Pour le vocabulaire anglais :
-    permet plusieurs traductions écrites
-    sous la forme :
-    "duvet, couette"
-    ou
-    "Va-t-en ! / Allez-vous en !"
-  */
+  ) return true;
 
   const alternatives =
     String(expected)
@@ -6685,13 +4568,8 @@ function isAcceptedWrittenAnswer(
         /\s*\/\s*|,\s*/
       )
       .map(
-        alternative =>
-          normalizeAnswer(
-            alternative
-          )
-      )
-      .filter(Boolean);
-
+        normalizeAnswer
+      );
 
   return alternatives.includes(
     normalizedUser
@@ -6699,15 +4577,9 @@ function isAcceptedWrittenAnswer(
 }
 
 
-// ============================================================
-// NORMALISATION
-// ============================================================
-
 function normalizeAnswer(value) {
 
-  return String(
-    value || ""
-  )
+  return String(value || "")
     .toLowerCase()
     .normalize("NFD")
     .replace(
@@ -6731,12 +4603,10 @@ function normalizeAnswer(value) {
 
 
 // ============================================================
-// BOUTON RETOUR
+// RETOUR
 // ============================================================
 
-function addBackButton(
-  callback
-) {
+function addBackButton(callback) {
 
   const back =
     document.createElement("div");
@@ -6750,7 +4620,6 @@ function addBackButton(
   back.style.padding =
     "16px 20px";
 
-
   back.innerHTML = `
     <div
       class="subject-name"
@@ -6763,16 +4632,12 @@ function addBackButton(
     </div>
   `;
 
-
   back.addEventListener(
     "click",
     callback
   );
 
-
-  container.appendChild(
-    back
-  );
+  container.appendChild(back);
 }
 
 
@@ -6785,9 +4650,7 @@ function shuffleArray(array) {
   for (
     let i =
       array.length - 1;
-
     i > 0;
-
     i--
   ) {
 
@@ -6796,7 +4659,6 @@ function shuffleArray(array) {
         Math.random() *
         (i + 1)
       );
-
 
     [
       array[i],
@@ -6810,32 +4672,15 @@ function shuffleArray(array) {
 
 
 // ============================================================
-// SECURISER LE TEXTE HTML
+// SECURITE HTML
 // ============================================================
 
 function escapeHtml(value) {
 
-  return String(
-    value ?? ""
-  )
-    .replace(
-      /&/g,
-      "&amp;"
-    )
-    .replace(
-      /</g,
-      "&lt;"
-    )
-    .replace(
-      />/g,
-      "&gt;"
-    )
-    .replace(
-      /"/g,
-      "&quot;"
-    )
-    .replace(
-      /'/g,
-      "&#039;"
-    );
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
