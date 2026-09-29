@@ -1826,10 +1826,27 @@ function showFrenchWrittenQuestion() {
 
 
       <div class="review-question">
-        ${escapeHtml(
-          current.question
-        )}
-      </div>
+
+  ${escapeHtml(
+    current.question
+  )}
+
+  ${
+    current.hint
+      ? `
+        <div style="
+          margin-top:14px;
+          font-size:18px;
+          font-weight:600;
+          color:#6b7280;
+        ">
+          (${escapeHtml(current.hint)})
+        </div>
+      `
+      : ""
+  }
+
+</div>
 
 
       <input
