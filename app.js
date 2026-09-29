@@ -1906,18 +1906,9 @@ function showFrenchWrittenQuestion() {
     if (!value) return;
 
 
-    const accepted = [
-      current.answer,
-      ...(current.accepted_answers || [])
-    ];
-
-
-    const correct =
-      accepted.some(
-        answer =>
-          normalizeAnswer(value) ===
-          normalizeAnswer(answer)
-      );
+   const correct =
+  normalizeAnswer(value) ===
+  normalizeAnswer(current.answer);
 
 
     input.disabled = true;
