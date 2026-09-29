@@ -41,11 +41,16 @@ let navigationStack = [];
 
 
 // ============================================================
-// REVISION / TEST
+// REVISION
 // ============================================================
 
 let reviewQuestions = [];
 let currentQuestionIndex = 0;
+
+
+// ============================================================
+// TEST
+// ============================================================
 
 let testQuestions = [];
 let currentTestIndex = 0;
@@ -102,11 +107,16 @@ async function loadSubjects() {
   container.innerHTML =
     "<p>Chargement...</p>";
 
+
   const { data, error } =
     await supabaseClient
       .from("subjects")
       .select("*")
-      .order("sort_order");
+      .order(
+        "sort_order",
+        { ascending: true }
+      );
+
 
   if (error) {
 
@@ -118,7 +128,9 @@ async function loadSubjects() {
     return;
   }
 
+
   container.innerHTML = "";
+
 
   data.forEach(subject => {
 
@@ -127,6 +139,7 @@ async function loadSubjects() {
 
     card.className =
       "subject-card";
+
 
     card.innerHTML = `
       <div class="subject-icon">
@@ -138,10 +151,12 @@ async function loadSubjects() {
       </div>
     `;
 
+
     card.addEventListener(
       "click",
       () => openSubject(subject)
     );
+
 
     container.appendChild(card);
   });
@@ -156,7 +171,9 @@ async function openSubject(subject) {
 
   currentSubject = subject;
   currentChapter = null;
+
   navigationStack = [];
+
 
   title.textContent =
     subject.name;
@@ -167,12 +184,20 @@ async function openSubject(subject) {
   container.innerHTML =
     "<p>Chargement...</p>";
 
+
   const { data, error } =
     await supabaseClient
       .from("chapters")
       .select("*")
-      .eq("subject_id", subject.id)
-      .order("sort_order");
+      .eq(
+        "subject_id",
+        subject.id
+      )
+      .order(
+        "sort_order",
+        { ascending: true }
+      );
+
 
   if (error) {
 
@@ -184,31 +209,39 @@ async function openSubject(subject) {
     return;
   }
 
+
   allSubjectChapters =
     data || [];
+
 
   renderChapterLevel(null);
 }
 
 
 // ============================================================
-// NAVIGATION CHAPITRES / SOUS-CHAPITRES
+// NAVIGATION ENTRE LES NIVEAUX
 // ============================================================
 
 function renderChapterLevel(parentId) {
 
   container.innerHTML = "";
 
+
   const children =
     allSubjectChapters
       .filter(chapter => {
 
         if (parentId === null) {
-          return chapter.parent_chapter_id === null;
+
+          return (
+            chapter.parent_chapter_id === null
+          );
         }
 
         return (
-          Number(chapter.parent_chapter_id) ===
+          Number(
+            chapter.parent_chapter_id
+          ) ===
           Number(parentId)
         );
       })
@@ -219,7 +252,9 @@ function renderChapterLevel(parentId) {
       );
 
 
-  if (navigationStack.length === 0) {
+  if (
+    navigationStack.length === 0
+  ) {
 
     title.textContent =
       currentSubject.name;
@@ -244,14 +279,21 @@ function renderChapterLevel(parentId) {
 
   addBackButton(() => {
 
-    if (navigationStack.length === 0) {
+    if (
+      navigationStack.length === 0
+    ) {
+
       loadSubjects();
       return;
     }
 
+
     navigationStack.pop();
 
-    if (navigationStack.length === 0) {
+
+    if (
+      navigationStack.length === 0
+    ) {
 
       renderChapterLevel(null);
 
@@ -262,12 +304,16 @@ function renderChapterLevel(parentId) {
           navigationStack.length - 1
         ];
 
-      renderChapterLevel(parent.id);
+      renderChapterLevel(
+        parent.id
+      );
     }
   });
 
 
-  if (children.length === 0) {
+  if (
+    children.length === 0
+  ) {
 
     const empty =
       document.createElement("div");
@@ -276,13 +322,17 @@ function renderChapterLevel(parentId) {
       "subject-card disabled-card";
 
     empty.innerHTML = `
-      <div class="subject-icon">📭</div>
+      <div class="subject-icon">
+        📭
+      </div>
+
       <div class="subject-name">
         Aucun contenu pour le moment
       </div>
     `;
 
     container.appendChild(empty);
+
     return;
   }
 
@@ -291,10 +341,13 @@ function renderChapterLevel(parentId) {
 
     const hasChildren =
       allSubjectChapters.some(
-        c =>
-          Number(c.parent_chapter_id) ===
+        possibleChild =>
+          Number(
+            possibleChild.parent_chapter_id
+          ) ===
           Number(chapter.id)
       );
+
 
     const card =
       document.createElement("div");
@@ -302,9 +355,62 @@ function renderChapterLevel(parentId) {
     card.className =
       "subject-card";
 
+
+    const icon =
+      getChapterIcon(
+        chapter,
+        hasChildren
+      );
+
+
+    let description = "";
+
+
+    if (hasChildren) {
+
+      description =
+        "Ouvrir";
+
+    } else if (
+      chapter.content_type === "map"
+    ) {
+
+      description =
+        "Carte interactive";
+
+    } else if (
+      chapter.content_type === "flags"
+    ) {
+
+      description =
+        "Drapeaux";
+
+    } else if (
+      chapter.content_type === "french_vocab"
+    ) {
+
+      description =
+        "Vocabulaire";
+
+    } else if (
+      chapter.test_mode === "qcm"
+    ) {
+
+      description =
+        "Révision + QCM";
+
+    } else if (
+      chapter.test_mode === "written"
+    ) {
+
+      description =
+        "Cartes + test écrit";
+    }
+
+
     card.innerHTML = `
       <div class="subject-icon">
-        ${getChapterIcon(chapter, hasChildren)}
+        ${icon}
       </div>
 
       <div class="subject-name">
@@ -312,15 +418,16 @@ function renderChapterLevel(parentId) {
       </div>
 
       ${
-        hasChildren
+        description
           ? `
             <div class="mode-description">
-              Ouvrir
+              ${description}
             </div>
           `
           : ""
       }
     `;
+
 
     card.addEventListener(
       "click",
@@ -328,15 +435,23 @@ function renderChapterLevel(parentId) {
 
         if (hasChildren) {
 
-          navigationStack.push(chapter);
-          renderChapterLevel(chapter.id);
+          navigationStack.push(
+            chapter
+          );
+
+          renderChapterLevel(
+            chapter.id
+          );
 
         } else {
 
-          showModes(chapter);
+          showModes(
+            chapter
+          );
         }
       }
     );
+
 
     container.appendChild(card);
   });
@@ -347,64 +462,126 @@ function renderChapterLevel(parentId) {
 // ICONES
 // ============================================================
 
-function getChapterIcon(chapter, hasChildren) {
+function getChapterIcon(
+  chapter,
+  hasChildren
+) {
 
-  if (chapter.name === "Vocabulaire")
+  if (
+    chapter.name === "Vocabulaire"
+  ) {
     return "🔤";
+  }
 
-  if (chapter.name === "Grammaire")
+  if (
+    chapter.name === "Grammaire"
+  ) {
     return "✏️";
+  }
 
-  if (/^TS\d+/i.test(chapter.name))
+  if (
+    /^TS\d+/i.test(
+      chapter.name
+    )
+  ) {
     return "📝";
+  }
 
-  if (chapter.name.includes("Unit"))
+  if (
+    chapter.name.includes("Unit")
+  ) {
     return "📚";
+  }
 
-  if (chapter.name === "Family")
+  if (
+    chapter.name === "Family"
+  ) {
     return "👨‍👩‍👧";
+  }
 
-  if (chapter.name === "Housework")
+  if (
+    chapter.name === "Housework"
+  ) {
     return "🧹";
+  }
 
-  if (chapter.name === "Home objects")
+  if (
+    chapter.name === "Home objects"
+  ) {
     return "🏠";
+  }
 
-  if (chapter.name === "Words and phrases")
+  if (
+    chapter.name === "Words and phrases"
+  ) {
     return "💬";
+  }
 
-  if (chapter.name === "Everyday English")
+  if (
+    chapter.name === "Everyday English"
+  ) {
     return "🗣️";
+  }
 
-  if (chapter.content_type === "flags")
+  if (
+    chapter.name
+      .toLowerCase()
+      .includes("toute")
+  ) {
+    return "🎯";
+  }
+
+  if (
+    chapter.content_type === "flags"
+  ) {
     return "🏳️";
+  }
 
-  if (chapter.content_type === "map")
+  if (
+    chapter.content_type === "map"
+  ) {
     return "🗺️";
+  }
 
-  if (chapter.content_type === "french_vocab")
+  if (
+    chapter.content_type === "french_vocab"
+  ) {
     return "📖";
+  }
 
-  if (hasChildren)
+  if (hasChildren) {
     return "📂";
+  }
 
   return "📘";
 }
 
 
 // ============================================================
-// MODES
+// MODES D'UN CHAPITRE
 // ============================================================
 
 function showModes(chapter) {
 
   currentChapter = chapter;
 
-  // Mode spécial français
-  if (chapter.content_type === "french_vocab") {
-    showFrenchVocabModes(chapter);
+
+  // ----------------------------------------------------------
+  // VOCABULAIRE FRANCAIS
+  // ----------------------------------------------------------
+
+  if (
+    chapter.content_type ===
+    "french_vocab"
+  ) {
+
+    showFrenchVocabModes(
+      chapter
+    );
+
     return;
   }
+
 
   title.textContent =
     chapter.name;
@@ -414,12 +591,15 @@ function showModes(chapter) {
 
   container.innerHTML = "";
 
+
   addBackButton(
     goBackToChapterList
   );
 
 
+  // ----------------------------------------------------------
   // REVISION
+  // ----------------------------------------------------------
 
   const revision =
     document.createElement("div");
@@ -427,15 +607,33 @@ function showModes(chapter) {
   revision.className =
     "subject-card";
 
+
+  let revisionIcon = "📚";
+  let revisionDescription =
+    "Cartes de révision";
+
+
+  if (
+    chapter.content_type === "flags"
+  ) {
+
+    revisionIcon = "🏳️";
+    revisionDescription =
+      "Drapeau → pays";
+
+  } else if (
+    chapter.content_type === "map"
+  ) {
+
+    revisionIcon = "🗺️";
+    revisionDescription =
+      "Retrouve les pays sur la carte";
+  }
+
+
   revision.innerHTML = `
     <div class="subject-icon">
-      ${
-        chapter.content_type === "map"
-          ? "🗺️"
-          : chapter.content_type === "flags"
-          ? "🏳️"
-          : "📚"
-      }
+      ${revisionIcon}
     </div>
 
     <div class="subject-name">
@@ -443,36 +641,39 @@ function showModes(chapter) {
     </div>
 
     <div class="mode-description">
-      ${
-        chapter.content_type === "map"
-          ? "Retrouve les pays sur la carte"
-          : chapter.content_type === "flags"
-          ? "Drapeau → pays"
-          : "Cartes de révision"
-      }
+      ${revisionDescription}
     </div>
   `;
+
 
   revision.addEventListener(
     "click",
     () => {
 
-      if (chapter.content_type === "map") {
-
-        startMapReview(chapter);
-
-      } else if (
+      if (
         chapter.content_type === "flags"
       ) {
 
-        startFlagReview(chapter);
+        startFlagReview(
+          chapter
+        );
+
+      } else if (
+        chapter.content_type === "map"
+      ) {
+
+        startMapReview(
+          chapter
+        );
 
       } else if (
         chapter.direction_mode ===
         "bidirectional"
       ) {
 
-        showDirectionChoice("review");
+        showDirectionChoice(
+          "review"
+        );
 
       } else {
 
@@ -484,24 +685,36 @@ function showModes(chapter) {
     }
   );
 
-  container.appendChild(revision);
+
+  container.appendChild(
+    revision
+  );
 
 
+  // ----------------------------------------------------------
   // TEST
+  // ----------------------------------------------------------
 
   const test =
     document.createElement("div");
 
-  if (chapter.test_mode === "disabled") {
+
+  if (
+    chapter.test_mode === "disabled"
+  ) {
 
     test.className =
       "subject-card disabled-card";
 
     test.innerHTML = `
-      <div class="subject-icon">🎯</div>
+      <div class="subject-icon">
+        🎯
+      </div>
+
       <div class="subject-name">
         Test
       </div>
+
       <div class="mode-description">
         Pas de test disponible
       </div>
@@ -512,23 +725,55 @@ function showModes(chapter) {
     test.className =
       "subject-card";
 
+
+    let description =
+      "Teste tes connaissances";
+
+
+    if (
+      chapter.test_mode === "written"
+    ) {
+
+      description =
+        "Écris les réponses";
+
+    } else if (
+      chapter.test_mode === "qcm"
+    ) {
+
+      description =
+        "Choisis la bonne réponse";
+
+    } else if (
+      chapter.content_type === "flags"
+    ) {
+
+      description =
+        "Choisis le bon drapeau";
+
+    } else if (
+      chapter.content_type === "map"
+    ) {
+
+      description =
+        "Retrouve 20 pays";
+    }
+
+
     test.innerHTML = `
-      <div class="subject-icon">🎯</div>
+      <div class="subject-icon">
+        🎯
+      </div>
 
       <div class="subject-name">
         Test
       </div>
 
       <div class="mode-description">
-        ${
-          chapter.test_mode === "written"
-            ? "Écris les réponses"
-            : chapter.test_mode === "qcm"
-            ? "Choisis la bonne réponse"
-            : "Teste tes connaissances"
-        }
+        ${description}
       </div>
     `;
+
 
     test.addEventListener(
       "click",
@@ -538,20 +783,26 @@ function showModes(chapter) {
           chapter.content_type === "flags"
         ) {
 
-          startFlagTest(chapter);
+          startFlagTest(
+            chapter
+          );
 
         } else if (
           chapter.content_type === "map"
         ) {
 
-          startMapTest(chapter);
+          startMapTest(
+            chapter
+          );
 
         } else if (
           chapter.direction_mode ===
           "bidirectional"
         ) {
 
-          showDirectionChoice("test");
+          showDirectionChoice(
+            "test"
+          );
 
         } else {
 
@@ -564,17 +815,23 @@ function showModes(chapter) {
     );
   }
 
-  container.appendChild(test);
+
+  container.appendChild(
+    test
+  );
 }
 
 
 // ============================================================
-// MODES VOCABULAIRE FRANCAIS
+// VOCABULAIRE FRANCAIS - MODES
 // ============================================================
 
-function showFrenchVocabModes(chapter) {
+function showFrenchVocabModes(
+  chapter
+) {
 
   currentChapter = chapter;
+
 
   title.textContent =
     chapter.name;
@@ -583,6 +840,7 @@ function showFrenchVocabModes(chapter) {
     "Choisis ton mode";
 
   container.innerHTML = "";
+
 
   addBackButton(
     goBackToChapterList
@@ -593,38 +851,101 @@ function showFrenchVocabModes(chapter) {
 
     {
       icon: "📄",
-      name: "Fiche de révision",
+
+      name:
+        "Fiche de révision",
+
       description:
         "Vocabulaire, définitions et suppléments",
+
       action:
-        () => startFrenchRevisionSheet(chapter)
+        () =>
+          startFrenchRevisionSheet(
+            chapter
+          )
     },
 
     {
       icon: "🧩",
-      name: "Apprentissage",
+
+      name:
+        "Apprentissage",
+
       description:
-        "Associe le vocabulaire à la bonne définition",
+        "Associe les mots et leurs définitions",
+
       action:
-        () => startFrenchLearning(chapter)
+        () =>
+          startFrenchLearning(
+            chapter
+          )
     },
 
     {
       icon: "✍️",
-      name: "Test écrit",
+
+      name:
+        "Définition → mot",
+
       description:
-        "Lis la définition et écris le mot",
+        "Lis la définition et écris le vocabulaire",
+
       action:
-        () => startFrenchWrittenTest(chapter)
+        () =>
+          chooseFrenchTestLength(
+            chapter,
+            "definition"
+          )
+    },
+
+    {
+      icon: "📝",
+
+      name:
+        "Phrase à trou",
+
+      description:
+        "Complète la phrase avec le bon mot",
+
+      action:
+        () =>
+          chooseFrenchTestLength(
+            chapter,
+            "cloze"
+          )
+    },
+
+    {
+      icon: "🔊",
+
+      name:
+        "Dictée",
+
+      description:
+        "Écoute le mot puis écris-le",
+
+      action:
+        () =>
+          chooseFrenchTestLength(
+            chapter,
+            "dictation"
+          )
     },
 
     {
       icon: "🔁",
-      name: "Contraires",
+
+      name:
+        "Contraires",
+
       description:
         "Cartes de révision sur les contraires",
+
       action:
-        () => showOppositeDirectionChoice(chapter)
+        () =>
+          showOppositeDirectionChoice(
+            chapter
+          )
     }
   ];
 
@@ -636,6 +957,7 @@ function showFrenchVocabModes(chapter) {
 
     card.className =
       "subject-card";
+
 
     card.innerHTML = `
       <div class="subject-icon">
@@ -651,12 +973,16 @@ function showFrenchVocabModes(chapter) {
       </div>
     `;
 
+
     card.addEventListener(
       "click",
       mode.action
     );
 
-    container.appendChild(card);
+
+    container.appendChild(
+      card
+    );
   });
 }
 
@@ -665,7 +991,9 @@ function showFrenchVocabModes(chapter) {
 // FICHE DE REVISION FRANCAIS
 // ============================================================
 
-async function startFrenchRevisionSheet(chapter) {
+async function startFrenchRevisionSheet(
+  chapter
+) {
 
   title.textContent =
     chapter.name;
@@ -676,15 +1004,23 @@ async function startFrenchRevisionSheet(chapter) {
   container.innerHTML =
     "<p>Chargement...</p>";
 
+
   const cards =
-    await loadCards(chapter);
+    await loadCards(
+      chapter
+    );
 
   if (!cards) return;
 
+
   container.innerHTML = "";
 
+
   addBackButton(
-    () => showFrenchVocabModes(chapter)
+    () =>
+      showFrenchVocabModes(
+        chapter
+      )
   );
 
 
@@ -707,6 +1043,7 @@ async function startFrenchRevisionSheet(chapter) {
   const heading =
     document.createElement("div");
 
+
   heading.innerHTML = `
     <h2 style="
       margin-top:0;
@@ -723,7 +1060,10 @@ async function startFrenchRevisionSheet(chapter) {
     </p>
   `;
 
-  sheet.appendChild(heading);
+
+  sheet.appendChild(
+    heading
+  );
 
 
   cards.forEach(card => {
@@ -731,11 +1071,13 @@ async function startFrenchRevisionSheet(chapter) {
     const row =
       document.createElement("div");
 
+
     row.style.padding =
       "20px 0";
 
     row.style.borderBottom =
       "1px solid #e5e7eb";
+
 
     row.innerHTML = `
       <div style="
@@ -746,15 +1088,23 @@ async function startFrenchRevisionSheet(chapter) {
         ${escapeHtml(card.answer)}
       </div>
 
+
       <div style="
         font-size:17px;
         line-height:1.5;
         margin-bottom:
-        ${card.supplement ? "7px" : "0"};
+        ${card.supplement ? "8px" : "0"};
       ">
-        <strong>Définition :</strong>
-        ${escapeHtml(card.definition || card.question)}
+        <strong>
+          Définition :
+        </strong>
+
+        ${escapeHtml(
+          card.definition ||
+          card.question
+        )}
       </div>
+
 
       ${
         card.supplement
@@ -764,20 +1114,31 @@ async function startFrenchRevisionSheet(chapter) {
               line-height:1.5;
               color:#4b5563;
             ">
-              <strong>Supplément :</strong>
-              ${escapeHtml(card.supplement)}
+              <strong>
+                Supplément :
+              </strong>
+
+              ${escapeHtml(
+                card.supplement
+              )}
             </div>
           `
           : ""
       }
     `;
 
-    sheet.appendChild(row);
+
+    sheet.appendChild(
+      row
+    );
   });
 
 
   const bottomBack =
-    document.createElement("button");
+    document.createElement(
+      "button"
+    );
+
 
   bottomBack.className =
     "secondary-button";
@@ -785,14 +1146,23 @@ async function startFrenchRevisionSheet(chapter) {
   bottomBack.textContent =
     "← Retour";
 
+
   bottomBack.addEventListener(
     "click",
-    () => showFrenchVocabModes(chapter)
+    () =>
+      showFrenchVocabModes(
+        chapter
+      )
   );
 
-  sheet.appendChild(bottomBack);
 
-  container.appendChild(sheet);
+  sheet.appendChild(
+    bottomBack
+  );
+
+  container.appendChild(
+    sheet
+  );
 }
 
 
@@ -800,7 +1170,9 @@ async function startFrenchRevisionSheet(chapter) {
 // APPRENTISSAGE FRANCAIS
 // ============================================================
 
-async function startFrenchLearning(chapter) {
+async function startFrenchLearning(
+  chapter
+) {
 
   title.textContent =
     chapter.name;
@@ -811,23 +1183,31 @@ async function startFrenchLearning(chapter) {
   container.innerHTML =
     "<p>Chargement...</p>";
 
+
   const cards =
-    await loadCards(chapter);
+    await loadCards(
+      chapter
+    );
 
   if (!cards) return;
 
 
   frenchLearningCards =
-    cards.map(card => ({
-      ...card
-    }));
+    cards.map(
+      card => ({
+        ...card
+      })
+    );
+
 
   shuffleArray(
     frenchLearningCards
   );
 
+
   frenchLearningIndex = 0;
   frenchLearningScore = 0;
+
 
   showFrenchLearningQuestion();
 }
@@ -854,8 +1234,10 @@ function showFrenchLearningQuestion() {
   const wrong =
     frenchLearningCards
       .filter(
-        card => card.id !== current.id
+        card =>
+          card.id !== current.id
       );
+
 
   shuffleArray(wrong);
 
@@ -864,6 +1246,7 @@ function showFrenchLearningQuestion() {
     current,
     ...wrong.slice(0, 3)
   ];
+
 
   shuffleArray(options);
 
@@ -893,29 +1276,34 @@ function showFrenchLearningQuestion() {
 
       </div>
 
+
       <div class="review-question">
-        ${escapeHtml(current.answer)}
+        ${escapeHtml(
+          current.answer
+        )}
       </div>
 
+
       <div style="
-        font-size:16px;
         color:#6b7280;
         margin-bottom:25px;
       ">
         Choisis la bonne définition.
       </div>
 
-      <div id="french-learning-options"
-           class="qcm-grid">
+
+      <div class="qcm-grid">
 
         ${options.map(
           (option, index) => `
+
             <button
               class="qcm-choice french-learning-choice"
               data-id="${option.id}"
             >
+
               <span class="qcm-letter">
-                ${["A","B","C","D"][index]}
+                ${["A", "B", "C", "D"][index]}
               </span>
 
               <span style="
@@ -926,25 +1314,14 @@ function showFrenchLearningQuestion() {
                   option.definition ||
                   option.question
                 )}
-
-                ${
-                  option.supplement
-                    ? `
-                      <br>
-                      <small>
-                        ${escapeHtml(
-                          option.supplement
-                        )}
-                      </small>
-                    `
-                    : ""
-                }
               </span>
+
             </button>
           `
         ).join("")}
 
       </div>
+
 
       <div
         id="french-learning-feedback"
@@ -955,6 +1332,7 @@ function showFrenchLearningQuestion() {
         "
       ></div>
 
+
       <button
         id="french-learning-next"
         class="main-button hidden"
@@ -962,6 +1340,7 @@ function showFrenchLearningQuestion() {
       >
         Suivant
       </button>
+
 
       <button
         id="quit-french-learning"
@@ -985,26 +1364,39 @@ function showFrenchLearningQuestion() {
         () => {
 
           const selectedId =
-            Number(button.dataset.id);
+            Number(
+              button.dataset.id
+            );
+
 
           const buttons =
             document.querySelectorAll(
               ".french-learning-choice"
             );
 
-          buttons.forEach(b => {
 
-            b.disabled = true;
+          buttons.forEach(
+            currentButton => {
 
-            if (
-              Number(b.dataset.id) ===
-              Number(current.id)
-            ) {
-              b.classList.add(
-                "qcm-correct"
-              );
+              currentButton.disabled =
+                true;
+
+
+              if (
+                Number(
+                  currentButton.dataset.id
+                ) ===
+                Number(current.id)
+              ) {
+
+                currentButton
+                  .classList
+                  .add(
+                    "qcm-correct"
+                  );
+              }
             }
-          });
+          );
 
 
           const feedback =
@@ -1012,9 +1404,12 @@ function showFrenchLearningQuestion() {
               "french-learning-feedback"
             );
 
-          feedback.classList.remove(
-            "hidden"
-          );
+
+          feedback
+            .classList
+            .remove(
+              "hidden"
+            );
 
 
           if (
@@ -1032,21 +1427,25 @@ function showFrenchLearningQuestion() {
 
           } else {
 
-            button.classList.add(
-              "qcm-wrong"
-            );
+            button
+              .classList
+              .add(
+                "qcm-wrong"
+              );
 
             feedback.innerHTML = `
               ❌ À revoir :
               <strong>
-                ${escapeHtml(current.answer)}
+                ${escapeHtml(
+                  current.answer
+                )}
               </strong>
             `;
 
             feedback.style.color =
               "#b91c1c";
 
-            // La carte revient plus tard
+
             frenchLearningCards.push(
               current
             );
@@ -1057,7 +1456,8 @@ function showFrenchLearningQuestion() {
             .getElementById(
               "french-learning-next"
             )
-            .classList.remove(
+            .classList
+            .remove(
               "hidden"
             );
         }
@@ -1074,6 +1474,7 @@ function showFrenchLearningQuestion() {
       () => {
 
         frenchLearningIndex++;
+
         showFrenchLearningQuestion();
       }
     );
@@ -1100,6 +1501,7 @@ function showFrenchLearningFinished() {
 
   subtitle.textContent =
     "Apprentissage terminé";
+
 
   container.innerHTML = `
     <div class="review-box">
@@ -1158,29 +1560,163 @@ function showFrenchLearningFinished() {
 
 
 // ============================================================
-// TEST ECRIT FRANCAIS
-// définition -> mot colonne de gauche
+// CHOIX 10 / 20 / TOUS
 // ============================================================
 
-async function startFrenchWrittenTest(chapter) {
+function chooseFrenchTestLength(
+  chapter,
+  mode
+) {
+
+  title.textContent =
+    chapter.name;
+
+
+  if (
+    mode === "dictation"
+  ) {
+
+    subtitle.textContent =
+      "Dictée";
+
+  } else if (
+    mode === "cloze"
+  ) {
+
+    subtitle.textContent =
+      "Phrase à trou";
+
+  } else {
+
+    subtitle.textContent =
+      "Définition → mot";
+  }
+
+
+  container.innerHTML = "";
+
+
+  addBackButton(
+    () =>
+      showFrenchVocabModes(
+        chapter
+      )
+  );
+
+
+  const choices = [
+
+    {
+      icon: "🔟",
+      name: "10 mots",
+      amount: 10
+    },
+
+    {
+      icon: "2️⃣0️⃣",
+      name: "20 mots",
+      amount: 20
+    },
+
+    {
+      icon: "📚",
+      name: "Tous les mots",
+      amount: "all"
+    }
+
+  ];
+
+
+  choices.forEach(choice => {
+
+    const card =
+      document.createElement("div");
+
+    card.className =
+      "subject-card";
+
+
+    card.innerHTML = `
+      <div class="subject-icon">
+        ${choice.icon}
+      </div>
+
+      <div class="subject-name">
+        ${choice.name}
+      </div>
+    `;
+
+
+    card.addEventListener(
+      "click",
+      () => {
+
+        if (
+          mode === "dictation"
+        ) {
+
+          startFrenchDictation(
+            chapter,
+            choice.amount
+          );
+
+        } else if (
+          mode === "cloze"
+        ) {
+
+          startFrenchClozeTest(
+            chapter,
+            choice.amount
+          );
+
+        } else {
+
+          startFrenchWrittenTest(
+            chapter,
+            choice.amount
+          );
+        }
+      }
+    );
+
+
+    container.appendChild(
+      card
+    );
+  });
+}
+
+
+// ============================================================
+// DEFINITION -> MOT
+// ============================================================
+
+async function startFrenchWrittenTest(
+  chapter,
+  amount = 20
+) {
 
   title.textContent =
     chapter.name;
 
   subtitle.textContent =
-    "Test écrit";
+    "Définition → mot";
 
   container.innerHTML =
     "<p>Chargement...</p>";
 
+
   const cards =
-    await loadCards(chapter);
+    await loadCards(
+      chapter
+    );
 
   if (!cards) return;
 
 
   testQuestions =
     cards.map(card => ({
+
       question:
         card.definition ||
         card.question,
@@ -1188,8 +1724,9 @@ async function startFrenchWrittenTest(chapter) {
       answer:
         card.answer,
 
-      supplement:
-        card.supplement
+      accepted_answers:
+        card.accepted_answers || []
+
     }));
 
 
@@ -1198,15 +1735,21 @@ async function startFrenchWrittenTest(chapter) {
   );
 
 
-  testQuestions =
-    testQuestions.slice(
-      0,
-      20
-    );
+  if (
+    amount !== "all"
+  ) {
+
+    testQuestions =
+      testQuestions.slice(
+        0,
+        amount
+      );
+  }
 
 
   currentTestIndex = 0;
   testScore = 0;
+
 
   showFrenchWrittenQuestion();
 }
@@ -1232,7 +1775,15 @@ function showFrenchWrittenQuestion() {
 
   const progress =
     ((currentTestIndex + 1) /
-      testQuestions.length) * 100;
+      testQuestions.length) *
+    100;
+
+
+  title.textContent =
+    currentChapter.name;
+
+  subtitle.textContent =
+    "Définition → mot";
 
 
   container.innerHTML = `
@@ -1242,6 +1793,7 @@ function showFrenchWrittenQuestion() {
 
         <div class="qcm-counter">
           Question ${currentTestIndex + 1}
+
           <span>
             sur ${testQuestions.length}
           </span>
@@ -1265,17 +1817,18 @@ function showFrenchWrittenQuestion() {
 
 
       <div style="
-        font-size:16px;
         color:#6b7280;
-        margin-bottom:10px;
+        margin-bottom:15px;
       ">
-        Quel mot ou quelle expression correspond
-        à cette définition ?
+        Quel mot ou quelle expression
+        correspond à cette définition ?
       </div>
 
 
       <div class="review-question">
-        ${escapeHtml(current.question)}
+        ${escapeHtml(
+          current.question
+        )}
       </div>
 
 
@@ -1293,7 +1846,7 @@ function showFrenchWrittenQuestion() {
           border-radius:16px;
           margin-bottom:18px;
         "
-      />
+      >
 
 
       <button
@@ -1308,7 +1861,7 @@ function showFrenchWrittenQuestion() {
         id="french-written-feedback"
         class="hidden"
         style="
-          margin-top:25px;
+          margin-top:22px;
           font-size:19px;
           font-weight:700;
         "
@@ -1340,34 +1893,108 @@ function showFrenchWrittenQuestion() {
       "french-written-answer"
     );
 
+
   input.focus();
 
 
-  input.addEventListener(
-    "keydown",
-    event => {
+  const validate = () => {
 
-      if (event.key !== "Enter")
-        return;
+    const value =
+      input.value.trim();
 
-      if (
-        !document
-          .getElementById(
-            "validate-french-written"
-          )
-          .classList
-          .contains("hidden")
-      ) {
 
-        validateFrenchWrittenAnswer();
+    if (!value) return;
 
-      } else {
 
-        currentTestIndex++;
-        showFrenchWrittenQuestion();
-      }
+    const accepted = [
+      current.answer,
+      ...(current.accepted_answers || [])
+    ];
+
+
+    const correct =
+      accepted.some(
+        answer =>
+          normalizeAnswer(value) ===
+          normalizeAnswer(answer)
+      );
+
+
+    input.disabled = true;
+
+
+    document
+      .getElementById(
+        "validate-french-written"
+      )
+      .classList.add(
+        "hidden"
+      );
+
+
+    document
+      .getElementById(
+        "next-french-written"
+      )
+      .classList.remove(
+        "hidden"
+      );
+
+
+    const feedback =
+      document.getElementById(
+        "french-written-feedback"
+      );
+
+
+    feedback
+      .classList
+      .remove(
+        "hidden"
+      );
+
+
+    if (correct) {
+
+      testScore++;
+
+      feedback.textContent =
+        "✅ Correct !";
+
+      feedback.style.color =
+        "#15803d";
+
+    } else {
+
+      feedback.innerHTML = `
+        ❌ Réponse attendue :
+        <br>
+
+        <strong>
+          ${escapeHtml(
+            current.answer
+          )}
+        </strong>
+
+        ${
+          current.accepted_answers?.length
+            ? `
+              <br>
+              <small>
+                Autres réponses acceptées :
+                ${escapeHtml(
+                  current.accepted_answers.join(", ")
+                )}
+              </small>
+            `
+            : ""
+        }
+      `;
+
+      feedback.style.color =
+        "#b91c1c";
     }
-  );
+  };
 
 
   document
@@ -1376,8 +2003,31 @@ function showFrenchWrittenQuestion() {
     )
     .addEventListener(
       "click",
-      validateFrenchWrittenAnswer
+      validate
     );
+
+
+  input.addEventListener(
+    "keydown",
+    event => {
+
+      if (
+        event.key !== "Enter"
+      ) return;
+
+
+      if (!input.disabled) {
+
+        validate();
+
+      } else {
+
+        currentTestIndex++;
+
+        showFrenchWrittenQuestion();
+      }
+    }
+  );
 
 
   document
@@ -1389,6 +2039,7 @@ function showFrenchWrittenQuestion() {
       () => {
 
         currentTestIndex++;
+
         showFrenchWrittenQuestion();
       }
     );
@@ -1408,86 +2059,846 @@ function showFrenchWrittenQuestion() {
 }
 
 
-function validateFrenchWrittenAnswer() {
+// ============================================================
+// PHRASE A TROU
+// ============================================================
+
+async function startFrenchClozeTest(
+  chapter,
+  amount
+) {
+
+  title.textContent =
+    chapter.name;
+
+  subtitle.textContent =
+    "Phrase à trou";
+
+  container.innerHTML =
+    "<p>Chargement...</p>";
+
+
+  const cards =
+    await loadCards(
+      chapter
+    );
+
+  if (!cards) return;
+
+
+  testQuestions =
+    cards
+      .filter(card =>
+        card.cloze_sentence &&
+        card.cloze_answer
+      )
+      .map(card => ({
+
+        question:
+          card.cloze_sentence,
+
+        answer:
+          card.cloze_answer,
+
+        accepted_answers:
+          card.accepted_answers || []
+
+      }));
+
+
+  shuffleArray(
+    testQuestions
+  );
+
+
+  if (
+    amount !== "all"
+  ) {
+
+    testQuestions =
+      testQuestions.slice(
+        0,
+        amount
+      );
+  }
+
+
+  currentTestIndex = 0;
+  testScore = 0;
+
+
+  showFrenchClozeQuestion();
+}
+
+
+function showFrenchClozeQuestion() {
+
+  if (
+    currentTestIndex >=
+    testQuestions.length
+  ) {
+
+    showTestFinished();
+    return;
+  }
+
 
   const current =
     testQuestions[
       currentTestIndex
     ];
 
+
+  const progress =
+    ((currentTestIndex + 1) /
+      testQuestions.length) *
+    100;
+
+
+  title.textContent =
+    currentChapter.name;
+
+  subtitle.textContent =
+    "Phrase à trou";
+
+
+  container.innerHTML = `
+    <div class="review-box">
+
+      <div class="qcm-topbar">
+
+        <div class="qcm-counter">
+          Question ${currentTestIndex + 1}
+
+          <span>
+            sur ${testQuestions.length}
+          </span>
+        </div>
+
+        <div class="qcm-score">
+          ⭐ ${testScore}
+        </div>
+
+      </div>
+
+
+      <div class="qcm-progress">
+
+        <div
+          class="qcm-progress-bar"
+          style="width:${progress}%"
+        ></div>
+
+      </div>
+
+
+      <div style="
+        color:#6b7280;
+        margin-bottom:15px;
+      ">
+        Complète la phrase.
+      </div>
+
+
+      <div class="review-question">
+        ${escapeHtml(
+          current.question
+        )}
+      </div>
+
+
+      <input
+        id="cloze-answer"
+        type="text"
+        autocomplete="off"
+        spellcheck="false"
+        placeholder="Écris le mot"
+        style="
+          width:100%;
+          padding:18px;
+          font-size:20px;
+          border:2px solid #d1d5db;
+          border-radius:16px;
+          margin-bottom:18px;
+        "
+      >
+
+
+      <button
+        id="validate-cloze"
+        class="main-button"
+      >
+        Valider
+      </button>
+
+
+      <div
+        id="cloze-feedback"
+        class="hidden"
+        style="
+          margin-top:22px;
+          font-size:19px;
+          font-weight:700;
+        "
+      ></div>
+
+
+      <button
+        id="next-cloze"
+        class="main-button hidden"
+        style="margin-top:20px;"
+      >
+        Question suivante
+      </button>
+
+
+      <button
+        id="quit-cloze"
+        class="secondary-button"
+      >
+        ← Quitter
+      </button>
+
+    </div>
+  `;
+
+
   const input =
     document.getElementById(
-      "french-written-answer"
-    );
-
-  const feedback =
-    document.getElementById(
-      "french-written-feedback"
-    );
-
-  const validate =
-    document.getElementById(
-      "validate-french-written"
-    );
-
-  const next =
-    document.getElementById(
-      "next-french-written"
+      "cloze-answer"
     );
 
 
-  const user =
-    input.value.trim();
+  input.focus();
 
-  if (!user)
+
+  const validate = () => {
+
+    const value =
+      input.value.trim();
+
+
+    if (!value) return;
+
+
+    const accepted = [
+      current.answer,
+      ...(current.accepted_answers || [])
+    ];
+
+
+    const correct =
+      accepted.some(
+        answer =>
+          normalizeAnswer(value) ===
+          normalizeAnswer(answer)
+      );
+
+
+    input.disabled = true;
+
+
+    document
+      .getElementById(
+        "validate-cloze"
+      )
+      .classList.add(
+        "hidden"
+      );
+
+
+    document
+      .getElementById(
+        "next-cloze"
+      )
+      .classList.remove(
+        "hidden"
+      );
+
+
+    const feedback =
+      document.getElementById(
+        "cloze-feedback"
+      );
+
+
+    feedback
+      .classList
+      .remove(
+        "hidden"
+      );
+
+
+    if (correct) {
+
+      testScore++;
+
+      feedback.textContent =
+        "✅ Correct !";
+
+      feedback.style.color =
+        "#15803d";
+
+    } else {
+
+      feedback.innerHTML = `
+        ❌ Réponse attendue :
+        <strong>
+          ${escapeHtml(
+            current.answer
+          )}
+        </strong>
+      `;
+
+      feedback.style.color =
+        "#b91c1c";
+    }
+  };
+
+
+  document
+    .getElementById(
+      "validate-cloze"
+    )
+    .addEventListener(
+      "click",
+      validate
+    );
+
+
+  input.addEventListener(
+    "keydown",
+    event => {
+
+      if (
+        event.key !== "Enter"
+      ) return;
+
+
+      if (!input.disabled) {
+
+        validate();
+
+      } else {
+
+        currentTestIndex++;
+
+        showFrenchClozeQuestion();
+      }
+    }
+  );
+
+
+  document
+    .getElementById(
+      "next-cloze"
+    )
+    .addEventListener(
+      "click",
+      () => {
+
+        currentTestIndex++;
+
+        showFrenchClozeQuestion();
+      }
+    );
+
+
+  document
+    .getElementById(
+      "quit-cloze"
+    )
+    .addEventListener(
+      "click",
+      () =>
+        showFrenchVocabModes(
+          currentChapter
+        )
+    );
+}
+
+
+// ============================================================
+// DICTEE
+// ============================================================
+
+async function startFrenchDictation(
+  chapter,
+  amount
+) {
+
+  title.textContent =
+    chapter.name;
+
+  subtitle.textContent =
+    "Dictée";
+
+  container.innerHTML =
+    "<p>Chargement...</p>";
+
+
+  const cards =
+    await loadCards(
+      chapter
+    );
+
+  if (!cards) return;
+
+
+  testQuestions =
+    cards.map(card => ({
+
+      answer:
+        card.answer,
+
+      accepted_answers:
+        card.accepted_answers || []
+
+    }));
+
+
+  shuffleArray(
+    testQuestions
+  );
+
+
+  if (
+    amount !== "all"
+  ) {
+
+    testQuestions =
+      testQuestions.slice(
+        0,
+        amount
+      );
+  }
+
+
+  currentTestIndex = 0;
+  testScore = 0;
+
+
+  showFrenchDictationQuestion();
+}
+
+
+function showFrenchDictationQuestion() {
+
+  if (
+    currentTestIndex >=
+    testQuestions.length
+  ) {
+
+    if (
+      "speechSynthesis" in window
+    ) {
+      speechSynthesis.cancel();
+    }
+
+    showTestFinished();
+
     return;
+  }
 
 
-  const correct =
-    normalizeAnswer(user) ===
-    normalizeAnswer(
+  const current =
+    testQuestions[
+      currentTestIndex
+    ];
+
+
+  const progress =
+    ((currentTestIndex + 1) /
+      testQuestions.length) *
+    100;
+
+
+  title.textContent =
+    currentChapter.name;
+
+  subtitle.textContent =
+    "Dictée";
+
+
+  container.innerHTML = `
+    <div class="review-box">
+
+      <div class="qcm-topbar">
+
+        <div class="qcm-counter">
+          Mot ${currentTestIndex + 1}
+
+          <span>
+            sur ${testQuestions.length}
+          </span>
+        </div>
+
+        <div class="qcm-score">
+          ⭐ ${testScore}
+        </div>
+
+      </div>
+
+
+      <div class="qcm-progress">
+
+        <div
+          class="qcm-progress-bar"
+          style="width:${progress}%"
+        ></div>
+
+      </div>
+
+
+      <div
+        class="subject-icon"
+        style="
+          font-size:65px;
+          margin:20px 0;
+        "
+      >
+        🔊
+      </div>
+
+
+      <div class="review-question">
+        Écoute puis écris le mot
+      </div>
+
+
+      <button
+        id="listen-word"
+        class="main-button"
+        style="margin-bottom:20px;"
+      >
+        🔊 Écouter
+      </button>
+
+
+      <input
+        id="dictation-answer"
+        type="text"
+        autocomplete="off"
+        spellcheck="false"
+        placeholder="Écris ce que tu entends"
+        style="
+          width:100%;
+          padding:18px;
+          font-size:20px;
+          border:2px solid #d1d5db;
+          border-radius:16px;
+          margin-bottom:18px;
+        "
+      >
+
+
+      <button
+        id="validate-dictation"
+        class="main-button"
+      >
+        Valider
+      </button>
+
+
+      <div
+        id="dictation-feedback"
+        class="hidden"
+        style="
+          margin-top:22px;
+          font-size:19px;
+          font-weight:700;
+        "
+      ></div>
+
+
+      <button
+        id="next-dictation"
+        class="main-button hidden"
+        style="margin-top:20px;"
+      >
+        Mot suivant
+      </button>
+
+
+      <button
+        id="quit-dictation"
+        class="secondary-button"
+      >
+        ← Quitter
+      </button>
+
+    </div>
+  `;
+
+
+  const speak = () => {
+
+    speakFrenchWord(
       current.answer
     );
+  };
 
 
-  input.disabled = true;
+  document
+    .getElementById(
+      "listen-word"
+    )
+    .addEventListener(
+      "click",
+      speak
+    );
 
-  validate.classList.add(
-    "hidden"
+
+  const input =
+    document.getElementById(
+      "dictation-answer"
+    );
+
+
+  input.focus();
+
+
+  const validate = () => {
+
+    const value =
+      input.value.trim();
+
+
+    if (!value) return;
+
+
+    /*
+      En dictée, on teste l'orthographe du mot entendu.
+      On ne valide donc PAS les synonymes.
+
+      Si l'app prononce "sinueux",
+      il faut écrire "sinueux".
+    */
+
+    const correct =
+      normalizeAnswer(value) ===
+      normalizeAnswer(
+        current.answer
+      );
+
+
+    input.disabled = true;
+
+
+    document
+      .getElementById(
+        "validate-dictation"
+      )
+      .classList.add(
+        "hidden"
+      );
+
+
+    document
+      .getElementById(
+        "next-dictation"
+      )
+      .classList.remove(
+        "hidden"
+      );
+
+
+    const feedback =
+      document.getElementById(
+        "dictation-feedback"
+      );
+
+
+    feedback
+      .classList
+      .remove(
+        "hidden"
+      );
+
+
+    if (correct) {
+
+      testScore++;
+
+      feedback.textContent =
+        "✅ Correct !";
+
+      feedback.style.color =
+        "#15803d";
+
+    } else {
+
+      feedback.innerHTML = `
+        ❌ Le mot était :
+        <br>
+
+        <strong>
+          ${escapeHtml(
+            current.answer
+          )}
+        </strong>
+      `;
+
+      feedback.style.color =
+        "#b91c1c";
+    }
+  };
+
+
+  document
+    .getElementById(
+      "validate-dictation"
+    )
+    .addEventListener(
+      "click",
+      validate
+    );
+
+
+  input.addEventListener(
+    "keydown",
+    event => {
+
+      if (
+        event.key !== "Enter"
+      ) return;
+
+
+      if (!input.disabled) {
+
+        validate();
+
+      } else {
+
+        currentTestIndex++;
+
+        showFrenchDictationQuestion();
+      }
+    }
   );
 
-  feedback.classList.remove(
-    "hidden"
+
+  document
+    .getElementById(
+      "next-dictation"
+    )
+    .addEventListener(
+      "click",
+      () => {
+
+        currentTestIndex++;
+
+        showFrenchDictationQuestion();
+      }
+    );
+
+
+  document
+    .getElementById(
+      "quit-dictation"
+    )
+    .addEventListener(
+      "click",
+      () => {
+
+        if (
+          "speechSynthesis" in window
+        ) {
+          speechSynthesis.cancel();
+        }
+
+        showFrenchVocabModes(
+          currentChapter
+        );
+      }
+    );
+
+
+  /*
+    Tentative de lecture automatique.
+    Sur iPhone/iPad, Safari peut exiger
+    un premier clic sur "Écouter".
+  */
+
+  setTimeout(
+    speak,
+    400
   );
-
-  next.classList.remove(
-    "hidden"
-  );
+}
 
 
-  if (correct) {
+// ============================================================
+// SYNTHESE VOCALE
+// ============================================================
 
-    testScore++;
+function speakFrenchWord(word) {
 
-    feedback.innerHTML =
-      "✅ Correct !";
+  if (
+    !("speechSynthesis" in window)
+  ) {
 
-    feedback.style.color =
-      "#15803d";
+    alert(
+      "La synthèse vocale n’est pas disponible sur cet appareil."
+    );
 
-  } else {
-
-    feedback.innerHTML = `
-      ❌ Réponse attendue :
-      <br>
-      <strong>
-        ${escapeHtml(current.answer)}
-      </strong>
-    `;
-
-    feedback.style.color =
-      "#b91c1c";
+    return;
   }
+
+
+  speechSynthesis.cancel();
+
+
+  const utterance =
+    new SpeechSynthesisUtterance(
+      word
+    );
+
+
+  utterance.lang =
+    "fr-FR";
+
+  utterance.rate =
+    0.8;
+
+  utterance.pitch =
+    1;
+
+
+  const voices =
+    speechSynthesis.getVoices();
+
+
+  const frenchVoice =
+    voices.find(
+      voice =>
+        voice.lang
+          ?.toLowerCase()
+          .startsWith("fr-ch")
+    ) ||
+    voices.find(
+      voice =>
+        voice.lang
+          ?.toLowerCase()
+          .startsWith("fr-fr")
+    ) ||
+    voices.find(
+      voice =>
+        voice.lang
+          ?.toLowerCase()
+          .startsWith("fr")
+    );
+
+
+  if (frenchVoice) {
+
+    utterance.voice =
+      frenchVoice;
+  }
+
+
+  speechSynthesis.speak(
+    utterance
+  );
 }
 
 
@@ -1495,7 +2906,9 @@ function validateFrenchWrittenAnswer() {
 // CONTRAIRES
 // ============================================================
 
-function showOppositeDirectionChoice(chapter) {
+function showOppositeDirectionChoice(
+  chapter
+) {
 
   title.textContent =
     chapter.name;
@@ -1505,8 +2918,12 @@ function showOppositeDirectionChoice(chapter) {
 
   container.innerHTML = "";
 
+
   addBackButton(
-    () => showFrenchVocabModes(chapter)
+    () =>
+      showFrenchVocabModes(
+        chapter
+      )
   );
 
 
@@ -1514,21 +2931,28 @@ function showOppositeDirectionChoice(chapter) {
 
     {
       icon: "➡️",
-      title: "Mot → contraire",
-      direction: "forward"
+      title:
+        "Mot → contraire",
+      direction:
+        "forward"
     },
 
     {
       icon: "⬅️",
-      title: "Contraire → mot",
-      direction: "reverse"
+      title:
+        "Contraire → mot",
+      direction:
+        "reverse"
     },
 
     {
       icon: "🔀",
-      title: "Les deux",
-      direction: "both"
+      title:
+        "Les deux",
+      direction:
+        "both"
     }
+
   ];
 
 
@@ -1540,6 +2964,7 @@ function showOppositeDirectionChoice(chapter) {
     card.className =
       "subject-card";
 
+
     card.innerHTML = `
       <div class="subject-icon">
         ${choice.icon}
@@ -1550,6 +2975,7 @@ function showOppositeDirectionChoice(chapter) {
       </div>
     `;
 
+
     card.addEventListener(
       "click",
       () =>
@@ -1559,7 +2985,10 @@ function showOppositeDirectionChoice(chapter) {
         )
     );
 
-    container.appendChild(card);
+
+    container.appendChild(
+      card
+    );
   });
 }
 
@@ -1578,8 +3007,11 @@ async function startOppositeCards(
   container.innerHTML =
     "<p>Chargement...</p>";
 
+
   const cards =
-    await loadCards(chapter);
+    await loadCards(
+      chapter
+    );
 
   if (!cards) return;
 
@@ -1588,7 +3020,10 @@ async function startOppositeCards(
 
 
   cards
-    .filter(card => card.opposite)
+    .filter(
+      card =>
+        card.opposite
+    )
     .forEach(card => {
 
       if (
@@ -1626,20 +3061,29 @@ async function startOppositeCards(
     oppositeQuestions
   );
 
+
   oppositeIndex = 0;
 
-  showOppositeCard(direction);
+
+  showOppositeCard(
+    direction
+  );
 }
 
 
-function showOppositeCard(direction) {
+function showOppositeCard(
+  direction
+) {
 
   if (
     oppositeIndex >=
     oppositeQuestions.length
   ) {
 
-    showOppositeFinished(direction);
+    showOppositeFinished(
+      direction
+    );
+
     return;
   }
 
@@ -1665,9 +3109,13 @@ function showOppositeCard(direction) {
         Quel est le contraire ?
       </div>
 
+
       <div class="review-question">
-        ${escapeHtml(current.question)}
+        ${escapeHtml(
+          current.question
+        )}
       </div>
+
 
       <button
         id="show-opposite"
@@ -1676,14 +3124,18 @@ function showOppositeCard(direction) {
         Voir la réponse
       </button>
 
+
       <div
         id="opposite-answer-area"
         class="hidden"
       >
 
         <div class="review-answer">
-          ${escapeHtml(current.answer)}
+          ${escapeHtml(
+            current.answer
+          )}
         </div>
+
 
         <div class="review-actions">
 
@@ -1704,6 +3156,7 @@ function showOppositeCard(direction) {
         </div>
 
       </div>
+
 
       <button
         id="quit-opposites"
@@ -1728,13 +3181,20 @@ function showOppositeCard(direction) {
           .getElementById(
             "opposite-answer-area"
           )
-          .classList.remove("hidden");
+          .classList
+          .remove(
+            "hidden"
+          );
+
 
         document
           .getElementById(
             "show-opposite"
           )
-          .classList.add("hidden");
+          .classList
+          .add(
+            "hidden"
+          );
       }
     );
 
@@ -1748,7 +3208,10 @@ function showOppositeCard(direction) {
       () => {
 
         oppositeIndex++;
-        showOppositeCard(direction);
+
+        showOppositeCard(
+          direction
+        );
       }
     );
 
@@ -1766,7 +3229,10 @@ function showOppositeCard(direction) {
         );
 
         oppositeIndex++;
-        showOppositeCard(direction);
+
+        showOppositeCard(
+          direction
+        );
       }
     );
 
@@ -1785,7 +3251,9 @@ function showOppositeCard(direction) {
 }
 
 
-function showOppositeFinished(direction) {
+function showOppositeFinished(
+  direction
+) {
 
   container.innerHTML = `
     <div class="review-box">
@@ -1845,12 +3313,14 @@ function showOppositeFinished(direction) {
 
 
 // ============================================================
-// RETOUR GENERIQUE
+// RETOUR GENERIQUE AUX CHAPITRES
 // ============================================================
 
 function goBackToChapterList() {
 
-  if (navigationStack.length === 0) {
+  if (
+    navigationStack.length === 0
+  ) {
 
     renderChapterLevel(null);
 
@@ -1861,13 +3331,15 @@ function goBackToChapterList() {
         navigationStack.length - 1
       ];
 
-    renderChapterLevel(parent.id);
+    renderChapterLevel(
+      parent.id
+    );
   }
 }
 
 
 // ============================================================
-// CHOIX DU SENS GENERIQUE
+// CHOIX DU SENS
 // ============================================================
 
 function showDirectionChoice(mode) {
@@ -1882,8 +3354,12 @@ function showDirectionChoice(mode) {
 
   container.innerHTML = "";
 
+
   addBackButton(
-    () => showModes(currentChapter)
+    () =>
+      showModes(
+        currentChapter
+      )
   );
 
 
@@ -1893,18 +3369,34 @@ function showDirectionChoice(mode) {
   let reverseTitle =
     "Sens inverse";
 
+  let forwardDescription =
+    "Question → réponse";
 
-  if (currentSubject?.name === "Anglais") {
+  let reverseDescription =
+    "Réponse → question";
+
+
+  if (
+    currentSubject?.name === "Anglais"
+  ) {
 
     forwardTitle =
       "Anglais → Français";
 
     reverseTitle =
       "Français → Anglais";
+
+    forwardDescription =
+      "Ex. mother → mère";
+
+    reverseDescription =
+      "Ex. mère → mother";
   }
 
 
-  if (currentSubject?.name === "Allemand") {
+  if (
+    currentSubject?.name === "Allemand"
+  ) {
 
     forwardTitle =
       "Allemand → Français";
@@ -1918,21 +3410,34 @@ function showDirectionChoice(mode) {
 
     {
       icon: "➡️",
-      title: forwardTitle,
-      direction: "forward"
+      title:
+        forwardTitle,
+      description:
+        forwardDescription,
+      direction:
+        "forward"
     },
 
     {
       icon: "⬅️",
-      title: reverseTitle,
-      direction: "reverse"
+      title:
+        reverseTitle,
+      description:
+        reverseDescription,
+      direction:
+        "reverse"
     },
 
     {
       icon: "🔀",
-      title: "Les deux",
-      direction: "both"
+      title:
+        "Les deux",
+      description:
+        "Mélange les deux sens",
+      direction:
+        "both"
     }
+
   ];
 
 
@@ -1944,6 +3449,7 @@ function showDirectionChoice(mode) {
     card.className =
       "subject-card";
 
+
     card.innerHTML = `
       <div class="subject-icon">
         ${choice.icon}
@@ -1952,6 +3458,10 @@ function showDirectionChoice(mode) {
       <div class="subject-name">
         ${choice.title}
       </div>
+
+      <div class="mode-description">
+        ${choice.description}
+      </div>
     `;
 
 
@@ -1959,7 +3469,9 @@ function showDirectionChoice(mode) {
       "click",
       () => {
 
-        if (mode === "review") {
+        if (
+          mode === "review"
+        ) {
 
           startReview(
             currentChapter,
@@ -1977,24 +3489,38 @@ function showDirectionChoice(mode) {
     );
 
 
-    container.appendChild(card);
+    container.appendChild(
+      card
+    );
   });
 }
 
 
 // ============================================================
-// CHARGEMENT CARTES
+// CHARGEMENT DES CARTES
 // ============================================================
 
-async function loadCards(chapter) {
+async function loadCards(
+  chapter
+) {
 
   const { data, error } =
     await supabaseClient
       .from("cards")
       .select("*")
-      .eq("chapter_id", chapter.id)
-      .eq("active", true)
-      .order("sort_order");
+      .eq(
+        "chapter_id",
+        chapter.id
+      )
+      .eq(
+        "active",
+        true
+      )
+      .order(
+        "sort_order",
+        { ascending: true }
+      );
+
 
   if (error) {
 
@@ -2007,7 +3533,10 @@ async function loadCards(chapter) {
   }
 
 
-  if (!data || data.length === 0) {
+  if (
+    !data ||
+    data.length === 0
+  ) {
 
     container.innerHTML = `
       <div class="review-box">
@@ -2026,22 +3555,30 @@ async function loadCards(chapter) {
       </div>
     `;
 
+
     document
-      .getElementById("empty-back")
+      .getElementById(
+        "empty-back"
+      )
       .addEventListener(
         "click",
-        () => showModes(chapter)
+        () =>
+          showModes(
+            chapter
+          )
       );
+
 
     return null;
   }
+
 
   return data;
 }
 
 
 // ============================================================
-// QUESTIONS BIDIRECTIONNELLES
+// CONSTRUCTION DES QUESTIONS
 // ============================================================
 
 function buildQuestions(
@@ -2060,8 +3597,13 @@ function buildQuestions(
     ) {
 
       questions.push({
-        question: card.question,
-        answer: card.answer
+
+        question:
+          card.question,
+
+        answer:
+          card.answer
+
       });
     }
 
@@ -2076,14 +3618,17 @@ function buildQuestions(
     ) {
 
       questions.push({
+
         question:
           card.reverse_question,
 
         answer:
           card.reverse_answer
+
       });
     }
   });
+
 
   return questions;
 }
@@ -2098,11 +3643,20 @@ async function startReview(
   direction
 ) {
 
+  title.textContent =
+    chapter.name;
+
+  subtitle.textContent =
+    "Mode Révision";
+
   container.innerHTML =
     "<p>Chargement...</p>";
 
+
   const cards =
-    await loadCards(chapter);
+    await loadCards(
+      chapter
+    );
 
   if (!cards) return;
 
@@ -2113,24 +3667,34 @@ async function startReview(
       direction
     );
 
+
   shuffleArray(
     reviewQuestions
   );
 
+
   currentQuestionIndex = 0;
 
-  showReviewQuestion(direction);
+
+  showReviewQuestion(
+    direction
+  );
 }
 
 
-function showReviewQuestion(direction) {
+function showReviewQuestion(
+  direction
+) {
 
   if (
     currentQuestionIndex >=
     reviewQuestions.length
   ) {
 
-    showReviewFinished(direction);
+    showReviewFinished(
+      direction
+    );
+
     return;
   }
 
@@ -2152,8 +3716,11 @@ function showReviewQuestion(direction) {
     <div class="review-box">
 
       <div class="review-question">
-        ${escapeHtml(current.question)}
+        ${escapeHtml(
+          current.question
+        )}
       </div>
+
 
       <button
         id="show-answer"
@@ -2162,14 +3729,18 @@ function showReviewQuestion(direction) {
         Voir la réponse
       </button>
 
+
       <div
         id="answer-area"
         class="hidden"
       >
 
         <div class="review-answer">
-          ${escapeHtml(current.answer)}
+          ${escapeHtml(
+            current.answer
+          )}
         </div>
+
 
         <div class="review-actions">
 
@@ -2191,6 +3762,7 @@ function showReviewQuestion(direction) {
 
       </div>
 
+
       <button
         id="quit-review"
         class="secondary-button review-back-button"
@@ -2203,36 +3775,55 @@ function showReviewQuestion(direction) {
 
 
   document
-    .getElementById("show-answer")
+    .getElementById(
+      "show-answer"
+    )
     .addEventListener(
       "click",
       () => {
 
         document
-          .getElementById("answer-area")
-          .classList.remove("hidden");
+          .getElementById(
+            "answer-area"
+          )
+          .classList
+          .remove(
+            "hidden"
+          );
 
         document
-          .getElementById("show-answer")
-          .classList.add("hidden");
+          .getElementById(
+            "show-answer"
+          )
+          .classList
+          .add(
+            "hidden"
+          );
       }
     );
 
 
   document
-    .getElementById("correct-button")
+    .getElementById(
+      "correct-button"
+    )
     .addEventListener(
       "click",
       () => {
 
         currentQuestionIndex++;
-        showReviewQuestion(direction);
+
+        showReviewQuestion(
+          direction
+        );
       }
     );
 
 
   document
-    .getElementById("wrong-button")
+    .getElementById(
+      "wrong-button"
+    )
     .addEventListener(
       "click",
       () => {
@@ -2244,16 +3835,24 @@ function showReviewQuestion(direction) {
         );
 
         currentQuestionIndex++;
-        showReviewQuestion(direction);
+
+        showReviewQuestion(
+          direction
+        );
       }
     );
 
 
   document
-    .getElementById("quit-review")
+    .getElementById(
+      "quit-review"
+    )
     .addEventListener(
       "click",
-      () => showModes(currentChapter)
+      () =>
+        showModes(
+          currentChapter
+        )
     );
 }
 
@@ -2262,7 +3861,16 @@ function showReviewQuestion(direction) {
 // FIN REVISION
 // ============================================================
 
-function showReviewFinished(direction) {
+function showReviewFinished(
+  direction
+) {
+
+  title.textContent =
+    currentChapter.name;
+
+  subtitle.textContent =
+    "Révision terminée";
+
 
   container.innerHTML = `
     <div class="review-box">
@@ -2299,11 +3907,34 @@ function showReviewFinished(direction) {
     )
     .addEventListener(
       "click",
-      () =>
-        startReview(
-          currentChapter,
-          direction
-        )
+      () => {
+
+        if (
+          currentChapter.content_type ===
+          "flags"
+        ) {
+
+          startFlagReview(
+            currentChapter
+          );
+
+        } else if (
+          currentChapter.content_type ===
+          "map"
+        ) {
+
+          startMapReview(
+            currentChapter
+          );
+
+        } else {
+
+          startReview(
+            currentChapter,
+            direction
+          );
+        }
+      }
     );
 
 
@@ -2314,13 +3945,15 @@ function showReviewFinished(direction) {
     .addEventListener(
       "click",
       () =>
-        showModes(currentChapter)
+        showModes(
+          currentChapter
+        )
     );
 }
 
 
 // ============================================================
-// TEST GENERIQUE
+// TEST ECRIT GENERIQUE
 // ============================================================
 
 async function startTest(
@@ -2328,18 +3961,32 @@ async function startTest(
   direction
 ) {
 
-  if (chapter.test_mode === "qcm") {
+  if (
+    chapter.test_mode === "qcm"
+  ) {
 
-    startQcmTest(chapter);
+    startQcmTest(
+      chapter
+    );
+
     return;
   }
 
 
+  title.textContent =
+    chapter.name;
+
+  subtitle.textContent =
+    "Test écrit";
+
   container.innerHTML =
     "<p>Chargement...</p>";
 
+
   const cards =
-    await loadCards(chapter);
+    await loadCards(
+      chapter
+    );
 
   if (!cards) return;
 
@@ -2350,23 +3997,32 @@ async function startTest(
       direction
     );
 
-  shuffleArray(testQuestions);
+
+  shuffleArray(
+    testQuestions
+  );
+
 
   testQuestions =
-    testQuestions.slice(0, 20);
+    testQuestions.slice(
+      0,
+      20
+    );
+
 
   currentTestIndex = 0;
   testScore = 0;
 
-  showWrittenTestQuestion(direction);
+
+  showWrittenTestQuestion(
+    direction
+  );
 }
 
 
-// ============================================================
-// TEST ECRIT GENERIQUE
-// ============================================================
-
-function showWrittenTestQuestion(direction) {
+function showWrittenTestQuestion(
+  direction
+) {
 
   if (
     currentTestIndex >=
@@ -2386,7 +4042,15 @@ function showWrittenTestQuestion(direction) {
 
   const progress =
     ((currentTestIndex + 1) /
-      testQuestions.length) * 100;
+      testQuestions.length) *
+    100;
+
+
+  title.textContent =
+    currentChapter.name;
+
+  subtitle.textContent =
+    "Test écrit";
 
 
   container.innerHTML = `
@@ -2396,6 +4060,7 @@ function showWrittenTestQuestion(direction) {
 
         <div class="qcm-counter">
           Question ${currentTestIndex + 1}
+
           <span>
             sur ${testQuestions.length}
           </span>
@@ -2419,7 +4084,9 @@ function showWrittenTestQuestion(direction) {
 
 
       <div class="review-question">
-        ${escapeHtml(current.question)}
+        ${escapeHtml(
+          current.question
+        )}
       </div>
 
 
@@ -2427,6 +4094,7 @@ function showWrittenTestQuestion(direction) {
         id="written-answer"
         type="text"
         autocomplete="off"
+        autocapitalize="none"
         spellcheck="false"
         placeholder="Écris ta réponse"
         style="
@@ -2437,7 +4105,7 @@ function showWrittenTestQuestion(direction) {
           border-radius:16px;
           margin-bottom:18px;
         "
-      />
+      >
 
 
       <button
@@ -2452,7 +4120,7 @@ function showWrittenTestQuestion(direction) {
         id="written-feedback"
         class="hidden"
         style="
-          margin-top:25px;
+          margin-top:22px;
           font-size:19px;
           font-weight:700;
         "
@@ -2484,7 +4152,85 @@ function showWrittenTestQuestion(direction) {
       "written-answer"
     );
 
+
   input.focus();
+
+
+  const validate = () => {
+
+    const value =
+      input.value.trim();
+
+
+    if (!value) return;
+
+
+    const correct =
+      isAcceptedWrittenAnswer(
+        value,
+        current.answer
+      );
+
+
+    input.disabled = true;
+
+
+    document
+      .getElementById(
+        "validate-written"
+      )
+      .classList.add(
+        "hidden"
+      );
+
+
+    document
+      .getElementById(
+        "next-written"
+      )
+      .classList.remove(
+        "hidden"
+      );
+
+
+    const feedback =
+      document.getElementById(
+        "written-feedback"
+      );
+
+
+    feedback
+      .classList
+      .remove(
+        "hidden"
+      );
+
+
+    if (correct) {
+
+      testScore++;
+
+      feedback.textContent =
+        "✅ Correct !";
+
+      feedback.style.color =
+        "#15803d";
+
+    } else {
+
+      feedback.innerHTML = `
+        ❌ Réponse :
+        <strong>
+          ${escapeHtml(
+            current.answer
+          )}
+        </strong>
+      `;
+
+      feedback.style.color =
+        "#b91c1c";
+    }
+  };
 
 
   document
@@ -2493,7 +4239,7 @@ function showWrittenTestQuestion(direction) {
     )
     .addEventListener(
       "click",
-      validateWrittenAnswer
+      validate
     );
 
 
@@ -2501,24 +4247,22 @@ function showWrittenTestQuestion(direction) {
     "keydown",
     event => {
 
-      if (event.key !== "Enter")
-        return;
-
       if (
-        !document
-          .getElementById(
-            "validate-written"
-          )
-          .classList
-          .contains("hidden")
-      ) {
+        event.key !== "Enter"
+      ) return;
 
-        validateWrittenAnswer();
+
+      if (!input.disabled) {
+
+        validate();
 
       } else {
 
         currentTestIndex++;
-        showWrittenTestQuestion(direction);
+
+        showWrittenTestQuestion(
+          direction
+        );
       }
     }
   );
@@ -2533,7 +4277,10 @@ function showWrittenTestQuestion(direction) {
       () => {
 
         currentTestIndex++;
-        showWrittenTestQuestion(direction);
+
+        showWrittenTestQuestion(
+          direction
+        );
       }
     );
 
@@ -2545,84 +4292,10 @@ function showWrittenTestQuestion(direction) {
     .addEventListener(
       "click",
       () =>
-        showModes(currentChapter)
+        showModes(
+          currentChapter
+        )
     );
-}
-
-
-function validateWrittenAnswer() {
-
-  const current =
-    testQuestions[
-      currentTestIndex
-    ];
-
-  const input =
-    document.getElementById(
-      "written-answer"
-    );
-
-  const feedback =
-    document.getElementById(
-      "written-feedback"
-    );
-
-
-  const correct =
-    isAcceptedWrittenAnswer(
-      input.value,
-      current.answer
-    );
-
-
-  input.disabled = true;
-
-
-  document
-    .getElementById(
-      "validate-written"
-    )
-    .classList.add(
-      "hidden"
-    );
-
-
-  document
-    .getElementById(
-      "next-written"
-    )
-    .classList.remove(
-      "hidden"
-    );
-
-
-  feedback.classList.remove(
-    "hidden"
-  );
-
-
-  if (correct) {
-
-    testScore++;
-
-    feedback.innerHTML =
-      "✅ Correct !";
-
-    feedback.style.color =
-      "#15803d";
-
-  } else {
-
-    feedback.innerHTML = `
-      ❌ Réponse :
-      <strong>
-        ${escapeHtml(current.answer)}
-      </strong>
-    `;
-
-    feedback.style.color =
-      "#b91c1c";
-  }
 }
 
 
@@ -2630,10 +4303,24 @@ function validateWrittenAnswer() {
 // QCM
 // ============================================================
 
-async function startQcmTest(chapter) {
+async function startQcmTest(
+  chapter
+) {
+
+  title.textContent =
+    chapter.name;
+
+  subtitle.textContent =
+    "Test QCM";
+
+  container.innerHTML =
+    "<p>Chargement...</p>";
+
 
   const cards =
-    await loadCards(chapter);
+    await loadCards(
+      chapter
+    );
 
   if (!cards) return;
 
@@ -2659,6 +4346,7 @@ async function startQcmTest(chapter) {
           card.wrong_answer_2,
           card.wrong_answer_3
         ]
+
       }));
 
 
@@ -2666,11 +4354,17 @@ async function startQcmTest(chapter) {
     testQuestions
   );
 
+
   testQuestions =
-    testQuestions.slice(0, 20);
+    testQuestions.slice(
+      0,
+      20
+    );
+
 
   currentTestIndex = 0;
   testScore = 0;
+
 
   showQcmQuestion();
 }
@@ -2697,7 +4391,16 @@ function showQcmQuestion() {
   const options =
     [...current.options];
 
-  shuffleArray(options);
+
+  shuffleArray(
+    options
+  );
+
+
+  const progress =
+    ((currentTestIndex + 1) /
+      testQuestions.length) *
+    100;
 
 
   container.innerHTML = `
@@ -2707,6 +4410,7 @@ function showQcmQuestion() {
 
         <div class="qcm-counter">
           Question ${currentTestIndex + 1}
+
           <span>
             sur ${testQuestions.length}
           </span>
@@ -2718,30 +4422,49 @@ function showQcmQuestion() {
 
       </div>
 
-      <div class="review-question">
-        ${escapeHtml(current.question)}
+
+      <div class="qcm-progress">
+
+        <div
+          class="qcm-progress-bar"
+          style="width:${progress}%"
+        ></div>
+
       </div>
+
+
+      <div class="review-question">
+        ${escapeHtml(
+          current.question
+        )}
+      </div>
+
 
       <div class="qcm-grid">
 
         ${options.map(
-          (option, i) => `
+          (option, index) => `
+
             <button
               class="qcm-choice"
               data-answer="${encodeURIComponent(option)}"
             >
+
               <span class="qcm-letter">
-                ${["A","B","C","D"][i]}
+                ${["A", "B", "C", "D"][index]}
               </span>
 
               <span>
                 ${escapeHtml(option)}
               </span>
+
             </button>
+
           `
         ).join("")}
 
       </div>
+
 
       <div
         id="qcm-feedback"
@@ -2752,6 +4475,7 @@ function showQcmQuestion() {
         "
       ></div>
 
+
       <button
         id="qcm-next"
         class="main-button hidden"
@@ -2759,6 +4483,7 @@ function showQcmQuestion() {
       >
         Question suivante
       </button>
+
 
       <button
         id="quit-qcm"
@@ -2772,7 +4497,9 @@ function showQcmQuestion() {
 
 
   document
-    .querySelectorAll(".qcm-choice")
+    .querySelectorAll(
+      ".qcm-choice"
+    )
     .forEach(button => {
 
       button.addEventListener(
@@ -2787,22 +4514,30 @@ function showQcmQuestion() {
 
 
   document
-    .getElementById("qcm-next")
+    .getElementById(
+      "qcm-next"
+    )
     .addEventListener(
       "click",
       () => {
 
         currentTestIndex++;
+
         showQcmQuestion();
       }
     );
 
 
   document
-    .getElementById("quit-qcm")
+    .getElementById(
+      "quit-qcm"
+    )
     .addEventListener(
       "click",
-      () => showModes(currentChapter)
+      () =>
+        showModes(
+          currentChapter
+        )
     );
 }
 
@@ -2822,15 +4557,23 @@ function answerQcm(
 
     button.disabled = true;
 
+
     const answer =
       decodeURIComponent(
         button.dataset.answer
       );
 
-    if (answer === correctAnswer) {
-      button.classList.add(
-        "qcm-correct"
-      );
+
+    if (
+      answer ===
+      correctAnswer
+    ) {
+
+      button
+        .classList
+        .add(
+          "qcm-correct"
+        );
     }
   });
 
@@ -2847,12 +4590,17 @@ function answerQcm(
     );
 
 
-  feedback.classList.remove(
-    "hidden"
-  );
+  feedback
+    .classList
+    .remove(
+      "hidden"
+    );
 
 
-  if (selected === correctAnswer) {
+  if (
+    selected ===
+    correctAnswer
+  ) {
 
     testScore++;
 
@@ -2864,14 +4612,19 @@ function answerQcm(
 
   } else {
 
-    selectedButton.classList.add(
-      "qcm-wrong"
-    );
+    selectedButton
+      .classList
+      .add(
+        "qcm-wrong"
+      );
+
 
     feedback.innerHTML = `
       ❌ Réponse :
       <strong>
-        ${escapeHtml(correctAnswer)}
+        ${escapeHtml(
+          correctAnswer
+        )}
       </strong>
     `;
 
@@ -2881,38 +4634,66 @@ function answerQcm(
 
 
   document
-    .getElementById("qcm-next")
-    .classList.remove("hidden");
+    .getElementById(
+      "qcm-next"
+    )
+    .classList
+    .remove(
+      "hidden"
+    );
 }
 
 
 // ============================================================
-// DRAPEAUX
+// DRAPEAUX - REVISION
 // ============================================================
 
-async function startFlagReview(chapter) {
+async function startFlagReview(
+  chapter
+) {
+
+  title.textContent =
+    chapter.name;
+
+  subtitle.textContent =
+    "Drapeau → pays";
+
+  container.innerHTML =
+    "<p>Chargement...</p>";
+
 
   const cards =
-    await loadCards(chapter);
+    await loadCards(
+      chapter
+    );
 
   if (!cards) return;
 
 
   reviewQuestions =
     cards
-      .filter(card => card.image_url)
+      .filter(
+        card =>
+          card.image_url
+      )
       .map(card => ({
+
         answer:
           card.answer,
 
         image_url:
           card.image_url
+
       }));
 
 
-  shuffleArray(reviewQuestions);
+  shuffleArray(
+    reviewQuestions
+  );
+
 
   currentQuestionIndex = 0;
+
 
   showFlagReviewQuestion();
 }
@@ -2925,7 +4706,10 @@ function showFlagReviewQuestion() {
     reviewQuestions.length
   ) {
 
-    showReviewFinished("forward");
+    showReviewFinished(
+      "forward"
+    );
+
     return;
   }
 
@@ -2936,6 +4720,10 @@ function showFlagReviewQuestion() {
     ];
 
 
+  subtitle.textContent =
+    `Question ${currentQuestionIndex + 1} sur ${reviewQuestions.length}`;
+
+
   container.innerHTML = `
     <div class="review-box">
 
@@ -2943,14 +4731,17 @@ function showFlagReviewQuestion() {
         Quel pays correspond à ce drapeau ?
       </div>
 
+
       <div class="flag-display">
 
         <img
           src="${current.image_url}"
           class="flag-main-image"
+          alt="Drapeau"
         >
 
       </div>
+
 
       <button
         id="show-flag"
@@ -2959,14 +4750,18 @@ function showFlagReviewQuestion() {
         Voir la réponse
       </button>
 
+
       <div
         id="flag-answer"
         class="hidden"
       >
 
         <div class="review-answer">
-          ${escapeHtml(current.answer)}
+          ${escapeHtml(
+            current.answer
+          )}
         </div>
+
 
         <div class="review-actions">
 
@@ -2988,78 +4783,147 @@ function showFlagReviewQuestion() {
 
       </div>
 
+
+      <button
+        id="quit-flag-review"
+        class="secondary-button review-back-button"
+      >
+        ← Quitter
+      </button>
+
     </div>
   `;
 
 
   document
-    .getElementById("show-flag")
+    .getElementById(
+      "show-flag"
+    )
     .addEventListener(
       "click",
       () => {
 
         document
-          .getElementById("flag-answer")
-          .classList.remove("hidden");
+          .getElementById(
+            "flag-answer"
+          )
+          .classList
+          .remove(
+            "hidden"
+          );
 
         document
-          .getElementById("show-flag")
-          .classList.add("hidden");
+          .getElementById(
+            "show-flag"
+          )
+          .classList
+          .add(
+            "hidden"
+          );
       }
     );
 
 
   document
-    .getElementById("flag-correct")
+    .getElementById(
+      "flag-correct"
+    )
     .addEventListener(
       "click",
       () => {
 
         currentQuestionIndex++;
+
         showFlagReviewQuestion();
       }
     );
 
 
   document
-    .getElementById("flag-wrong")
+    .getElementById(
+      "flag-wrong"
+    )
     .addEventListener(
       "click",
       () => {
 
-        reviewQuestions.push(current);
+        reviewQuestions.push(
+          current
+        );
 
         currentQuestionIndex++;
+
         showFlagReviewQuestion();
       }
+    );
+
+
+  document
+    .getElementById(
+      "quit-flag-review"
+    )
+    .addEventListener(
+      "click",
+      () =>
+        showModes(
+          currentChapter
+        )
     );
 }
 
 
-async function startFlagTest(chapter) {
+// ============================================================
+// DRAPEAUX - TEST
+// ============================================================
+
+async function startFlagTest(
+  chapter
+) {
+
+  title.textContent =
+    chapter.name;
+
+  subtitle.textContent =
+    "Test drapeaux";
+
+  container.innerHTML =
+    "<p>Chargement...</p>";
+
 
   const cards =
-    await loadCards(chapter);
+    await loadCards(
+      chapter
+    );
 
   if (!cards) return;
 
 
   currentMapCards =
-    cards.filter(card =>
-      card.image_url
+    cards.filter(
+      card =>
+        card.image_url
     );
 
 
   testQuestions =
     [...currentMapCards];
 
-  shuffleArray(testQuestions);
+
+  shuffleArray(
+    testQuestions
+  );
+
 
   testQuestions =
-    testQuestions.slice(0, 20);
+    testQuestions.slice(
+      0,
+      20
+    );
+
 
   currentTestIndex = 0;
   testScore = 0;
+
 
   showFlagTestQuestion();
 }
@@ -3084,11 +4948,16 @@ function showFlagTestQuestion() {
 
 
   const wrong =
-    currentMapCards.filter(
-      card => card.id !== correct.id
-    );
+    currentMapCards
+      .filter(
+        card =>
+          card.id !== correct.id
+      );
 
-  shuffleArray(wrong);
+
+  shuffleArray(
+    wrong
+  );
 
 
   const options = [
@@ -3096,17 +4965,43 @@ function showFlagTestQuestion() {
     ...wrong.slice(0, 3)
   ];
 
-  shuffleArray(options);
+
+  shuffleArray(
+    options
+  );
 
 
   container.innerHTML = `
     <div class="review-box">
 
+      <div class="qcm-topbar">
+
+        <div class="qcm-counter">
+          Question ${currentTestIndex + 1}
+
+          <span>
+            sur ${testQuestions.length}
+          </span>
+        </div>
+
+        <div class="qcm-score">
+          ⭐ ${testScore}
+        </div>
+
+      </div>
+
+
       <div class="review-question">
         Quel est le drapeau de :
         <br>
-        ${escapeHtml(correct.answer)}
+
+        <strong>
+          ${escapeHtml(
+            correct.answer
+          )}
+        </strong>
       </div>
+
 
       <div class="flag-qcm-grid">
 
@@ -3115,20 +5010,42 @@ function showFlagTestQuestion() {
             class="flag-choice-button"
             data-id="${card.id}"
           >
+
             <img
               src="${card.image_url}"
               alt="Drapeau"
             >
+
           </button>
         `).join("")}
 
       </div>
 
+
+      <div
+        id="flag-feedback"
+        class="hidden"
+        style="
+          margin-top:20px;
+          font-weight:700;
+        "
+      ></div>
+
+
       <button
         id="flag-next"
         class="main-button hidden"
+        style="margin-top:20px;"
       >
         Question suivante
+      </button>
+
+
+      <button
+        id="quit-flag-test"
+        class="secondary-button"
+      >
+        ← Quitter
       </button>
 
     </div>
@@ -3146,27 +5063,50 @@ function showFlagTestQuestion() {
         () => {
 
           const selected =
-            Number(button.dataset.id);
+            Number(
+              button.dataset.id
+            );
 
 
           document
             .querySelectorAll(
               ".flag-choice-button"
             )
-            .forEach(b => {
+            .forEach(
+              currentButton => {
 
-              b.disabled = true;
+                currentButton.disabled =
+                  true;
 
-              if (
-                Number(b.dataset.id) ===
-                Number(correct.id)
-              ) {
 
-                b.classList.add(
-                  "qcm-correct"
-                );
+                if (
+                  Number(
+                    currentButton.dataset.id
+                  ) ===
+                  Number(correct.id)
+                ) {
+
+                  currentButton
+                    .classList
+                    .add(
+                      "qcm-correct"
+                    );
+                }
               }
-            });
+            );
+
+
+          const feedback =
+            document.getElementById(
+              "flag-feedback"
+            );
+
+
+          feedback
+            .classList
+            .remove(
+              "hidden"
+            );
 
 
           if (
@@ -3176,11 +5116,25 @@ function showFlagTestQuestion() {
 
             testScore++;
 
+            feedback.textContent =
+              "✅ Correct !";
+
+            feedback.style.color =
+              "#15803d";
+
           } else {
 
-            button.classList.add(
-              "qcm-wrong"
-            );
+            button
+              .classList
+              .add(
+                "qcm-wrong"
+              );
+
+            feedback.textContent =
+              "❌ Mauvais drapeau";
+
+            feedback.style.color =
+              "#b91c1c";
           }
 
 
@@ -3188,7 +5142,8 @@ function showFlagTestQuestion() {
             .getElementById(
               "flag-next"
             )
-            .classList.remove(
+            .classList
+            .remove(
               "hidden"
             );
         }
@@ -3197,42 +5152,78 @@ function showFlagTestQuestion() {
 
 
   document
-    .getElementById("flag-next")
+    .getElementById(
+      "flag-next"
+    )
     .addEventListener(
       "click",
       () => {
 
         currentTestIndex++;
+
         showFlagTestQuestion();
       }
+    );
+
+
+  document
+    .getElementById(
+      "quit-flag-test"
+    )
+    .addEventListener(
+      "click",
+      () =>
+        showModes(
+          currentChapter
+        )
     );
 }
 
 
 // ============================================================
-// CARTE EUROPE
+// CARTE EUROPE - REVISION
 // ============================================================
 
-async function startMapReview(chapter) {
+async function startMapReview(
+  chapter
+) {
+
+  title.textContent =
+    chapter.name;
+
+  subtitle.textContent =
+    "Révision carte";
+
+  container.innerHTML =
+    "<p>Chargement...</p>";
+
 
   const cards =
-    await loadCards(chapter);
+    await loadCards(
+      chapter
+    );
 
   if (!cards) return;
 
 
   currentMapCards =
-    cards.filter(card =>
-      card.map_code
+    cards.filter(
+      card =>
+        card.map_code
     );
 
 
   reviewQuestions =
     [...currentMapCards];
 
-  shuffleArray(reviewQuestions);
+
+  shuffleArray(
+    reviewQuestions
+  );
+
 
   currentQuestionIndex = 0;
+
 
   showMapReviewQuestion();
 }
@@ -3245,7 +5236,10 @@ async function showMapReviewQuestion() {
     reviewQuestions.length
   ) {
 
-    showReviewFinished("forward");
+    showReviewFinished(
+      "forward"
+    );
+
     return;
   }
 
@@ -3254,6 +5248,10 @@ async function showMapReviewQuestion() {
     reviewQuestions[
       currentQuestionIndex
     ];
+
+
+  subtitle.textContent =
+    `Question ${currentQuestionIndex + 1} sur ${reviewQuestions.length}`;
 
 
   renderMapCard(
@@ -3269,30 +5267,58 @@ async function showMapReviewQuestion() {
 }
 
 
-async function startMapTest(chapter) {
+// ============================================================
+// CARTE EUROPE - TEST
+// ============================================================
+
+async function startMapTest(
+  chapter
+) {
+
+  title.textContent =
+    chapter.name;
+
+  subtitle.textContent =
+    "Test carte";
+
+  container.innerHTML =
+    "<p>Chargement...</p>";
+
 
   const cards =
-    await loadCards(chapter);
+    await loadCards(
+      chapter
+    );
 
   if (!cards) return;
 
 
   currentMapCards =
-    cards.filter(card =>
-      card.map_code
+    cards.filter(
+      card =>
+        card.map_code
     );
 
 
   testQuestions =
     [...currentMapCards];
 
-  shuffleArray(testQuestions);
+
+  shuffleArray(
+    testQuestions
+  );
+
 
   testQuestions =
-    testQuestions.slice(0, 20);
+    testQuestions.slice(
+      0,
+      20
+    );
+
 
   currentTestIndex = 0;
   testScore = 0;
+
 
   showMapTestQuestion();
 }
@@ -3329,13 +5355,52 @@ async function showMapTestQuestion() {
 }
 
 
+// ============================================================
+// CARTE - INTERFACE
+// ============================================================
+
 function renderMapCard(
   current,
   mode
 ) {
 
+  const index =
+    mode === "review"
+      ? currentQuestionIndex
+      : currentTestIndex;
+
+
+  const total =
+    mode === "review"
+      ? reviewQuestions.length
+      : testQuestions.length;
+
+
   container.innerHTML = `
     <div class="map-card">
+
+      ${
+        mode === "test"
+          ? `
+            <div class="qcm-topbar">
+
+              <div class="qcm-counter">
+                Question ${index + 1}
+
+                <span>
+                  sur ${total}
+                </span>
+              </div>
+
+              <div class="qcm-score">
+                ⭐ ${testScore}
+              </div>
+
+            </div>
+          `
+          : ""
+      }
+
 
       <div class="map-instruction">
         ${
@@ -3345,9 +5410,13 @@ function renderMapCard(
         }
       </div>
 
+
       <div class="map-country-name">
-        ${escapeHtml(current.answer)}
+        ${escapeHtml(
+          current.answer
+        )}
       </div>
+
 
       <div class="map-controls">
 
@@ -3374,12 +5443,14 @@ function renderMapCard(
 
       </div>
 
+
       <div
         id="map-container"
         class="europe-map-container"
       >
         Chargement...
       </div>
+
 
       <div
         id="map-feedback"
@@ -3388,12 +5459,15 @@ function renderMapCard(
           margin-top:18px;
           text-align:center;
           font-weight:700;
+          font-size:18px;
         "
       ></div>
+
 
       <button
         id="quit-map"
         class="secondary-button"
+        style="margin-top:20px;"
       >
         ← Quitter
       </button>
@@ -3403,13 +5477,22 @@ function renderMapCard(
 
 
   document
-    .getElementById("quit-map")
+    .getElementById(
+      "quit-map"
+    )
     .addEventListener(
       "click",
-      () => showModes(currentChapter)
+      () =>
+        showModes(
+          currentChapter
+        )
     );
 }
 
+
+// ============================================================
+// CHARGEMENT SVG
+// ============================================================
 
 async function loadInteractiveMap(
   correctCode,
@@ -3425,20 +5508,43 @@ async function loadInteractiveMap(
   try {
 
     const response =
-      await fetch("europe-map.svg");
+      await fetch(
+        "europe-map.svg"
+      );
+
+
+    if (!response.ok) {
+
+      throw new Error(
+        "europe-map.svg introuvable"
+      );
+    }
+
 
     const svgText =
       await response.text();
 
+
     mapContainer.innerHTML =
       svgText;
+
 
     const svg =
       mapContainer.querySelector(
         "svg"
       );
 
+
+    if (!svg) {
+
+      throw new Error(
+        "SVG invalide"
+      );
+    }
+
+
     prepareEuropeMap(svg);
+
     setupMapNavigation(svg);
 
     setupMapClicks(
@@ -3447,69 +5553,92 @@ async function loadInteractiveMap(
       mode
     );
 
+
   } catch (error) {
 
     console.error(error);
 
     mapContainer.innerHTML =
-      "Impossible de charger la carte.";
+      "<p>Impossible de charger la carte.</p>";
   }
 }
 
 
+// ============================================================
+// PREPARATION CARTE
+// ============================================================
+
 function prepareEuropeMap(svg) {
 
-  svg.removeAttribute("width");
-  svg.removeAttribute("height");
+  svg.removeAttribute(
+    "width"
+  );
+
+  svg.removeAttribute(
+    "height"
+  );
+
 
   svg.classList.add(
     "interactive-europe-map"
   );
 
 
+  svg.setAttribute(
+    "preserveAspectRatio",
+    "xMidYMid meet"
+  );
+
+
   const allowedCodes =
     currentMapCards.map(
       card =>
-        String(card.map_code)
-          .toUpperCase()
+        String(
+          card.map_code
+        ).toUpperCase()
     );
 
 
-  svg.querySelectorAll(
-    "g[id]"
-  ).forEach(group => {
+  svg
+    .querySelectorAll(
+      "g[id]"
+    )
+    .forEach(group => {
 
-    const code =
-      String(group.id)
-        .toUpperCase();
-
-
-    group.classList.remove(
-      "map-country",
-      "map-country-disabled",
-      "map-country-correct",
-      "map-country-wrong"
-    );
+      const code =
+        String(
+          group.id
+        ).toUpperCase();
 
 
-    if (
-      allowedCodes.includes(code)
-    ) {
-
-      group.classList.add(
-        "map-country"
+      group.classList.remove(
+        "map-country",
+        "map-country-disabled",
+        "map-country-correct",
+        "map-country-wrong"
       );
 
-      group.dataset.countryCode =
-        code;
 
-    } else {
+      if (
+        allowedCodes.includes(
+          code
+        )
+      ) {
 
-      group.classList.add(
-        "map-country-disabled"
-      );
-    }
-  });
+        group.classList.add(
+          "map-country"
+        );
+
+        group.dataset.countryCode =
+          code;
+
+      } else {
+
+        group.classList.add(
+          "map-country-disabled"
+        );
+      }
+    });
 
 
   createMapHitAreas(
@@ -3517,17 +5646,26 @@ function prepareEuropeMap(svg) {
     allowedCodes
   );
 
-  setInitialEuropeView(svg);
+
+  setInitialEuropeView(
+    svg
+  );
 }
 
+
+// ============================================================
+// CADRAGE EUROPE
+// ============================================================
 
 function setInitialEuropeView(svg) {
 
   const viewBox = {
+
     x: 430,
     y: 55,
     width: 235,
     height: 205
+
   };
 
 
@@ -3535,27 +5673,42 @@ function setInitialEuropeView(svg) {
     ...viewBox
   };
 
+
   mapCurrentViewBox = {
     ...viewBox
   };
 
-  applyMapViewBox(svg);
+
+  applyMapViewBox(
+    svg
+  );
 }
 
+
+// ============================================================
+// PETITS PAYS
+// ============================================================
 
 function createMapHitAreas(
   svg,
   allowedCodes
 ) {
 
-  const ns =
+  const namespace =
     "http://www.w3.org/2000/svg";
+
 
   const overlay =
     document.createElementNS(
-      ns,
+      namespace,
       "g"
     );
+
+
+  overlay.setAttribute(
+    "id",
+    "map-hit-areas"
+  );
 
 
   const smallCodes = [
@@ -3572,8 +5725,12 @@ function createMapHitAreas(
   smallCodes.forEach(code => {
 
     if (
-      !allowedCodes.includes(code)
-    ) return;
+      !allowedCodes.includes(
+        code
+      )
+    ) {
+      return;
+    }
 
 
     const country =
@@ -3581,57 +5738,94 @@ function createMapHitAreas(
         `g[id="${code}"]`
       );
 
-    if (!country) return;
+
+    if (!country) {
+      return;
+    }
 
 
-    const box =
-      country.getBBox();
+    try {
+
+      const box =
+        country.getBBox();
 
 
-    const hit =
-      document.createElementNS(
-        ns,
-        "rect"
+      const centerX =
+        box.x +
+        box.width / 2;
+
+
+      const centerY =
+        box.y +
+        box.height / 2;
+
+
+      const size = 8;
+
+
+      const hit =
+        document.createElementNS(
+          namespace,
+          "rect"
+        );
+
+
+      hit.setAttribute(
+        "x",
+        centerX -
+        size / 2
+      );
+
+      hit.setAttribute(
+        "y",
+        centerY -
+        size / 2
+      );
+
+      hit.setAttribute(
+        "width",
+        size
+      );
+
+      hit.setAttribute(
+        "height",
+        size
+      );
+
+      hit.setAttribute(
+        "class",
+        "map-small-hit"
       );
 
 
-    hit.setAttribute(
-      "x",
-      box.x +
-      box.width / 2 - 4
-    );
+      hit.dataset.countryCode =
+        code;
 
-    hit.setAttribute(
-      "y",
-      box.y +
-      box.height / 2 - 4
-    );
 
-    hit.setAttribute(
-      "width",
-      8
-    );
+      overlay.appendChild(
+        hit
+      );
 
-    hit.setAttribute(
-      "height",
-      8
-    );
 
-    hit.setAttribute(
-      "class",
-      "map-small-hit"
-    );
+    } catch (error) {
 
-    hit.dataset.countryCode =
-      code;
-
-    overlay.appendChild(hit);
+      console.warn(
+        "Zone de clic impossible :",
+        code
+      );
+    }
   });
 
 
-  svg.appendChild(overlay);
+  svg.appendChild(
+    overlay
+  );
 }
 
+
+// ============================================================
+// CLICS CARTE
+// ============================================================
 
 function setupMapClicks(
   svg,
@@ -3640,13 +5834,18 @@ function setupMapClicks(
 ) {
 
   const correct =
-    String(correctCode)
-      .toUpperCase();
+    String(
+      correctCode
+    ).toUpperCase();
 
 
-  svg.querySelectorAll(
-    ".map-country, .map-small-hit"
-  ).forEach(element => {
+  const clickable =
+    svg.querySelectorAll(
+      ".map-country, .map-small-hit"
+    );
+
+
+  clickable.forEach(element => {
 
     element.addEventListener(
       "click",
@@ -3655,7 +5854,9 @@ function setupMapClicks(
         if (
           svg.dataset.ignoreMapClick ===
           "true"
-        ) return;
+        ) {
+          return;
+        }
 
 
         event.stopPropagation();
@@ -3679,6 +5880,10 @@ function setupMapClicks(
   });
 }
 
+
+// ============================================================
+// REPONSE CARTE
+// ============================================================
 
 function handleMapAnswer(
   svg,
@@ -3705,32 +5910,69 @@ function handleMapAnswer(
     );
 
 
-  if (clicked === correct) {
+  svg
+    .querySelectorAll(
+      ".map-country, .map-small-hit"
+    )
+    .forEach(element => {
 
-    clickedCountry?.classList.add(
-      "map-country-correct"
-    );
+      element.style.pointerEvents =
+        "none";
+    });
+
+
+  if (
+    clicked === correct
+  ) {
+
+    clickedCountry
+      ?.classList
+      .add(
+        "map-country-correct"
+      );
+
 
     feedback.textContent =
       "✅ Correct !";
 
-    if (mode === "test")
+    feedback.style.color =
+      "#15803d";
+
+
+    if (
+      mode === "test"
+    ) {
+
       testScore++;
+    }
+
 
   } else {
 
-    clickedCountry?.classList.add(
-      "map-country-wrong"
-    );
+    clickedCountry
+      ?.classList
+      .add(
+        "map-country-wrong"
+      );
 
-    correctCountry?.classList.add(
-      "map-country-correct"
-    );
+
+    correctCountry
+      ?.classList
+      .add(
+        "map-country-correct"
+      );
+
 
     feedback.textContent =
       "❌ Ce n’était pas ce pays.";
 
-    if (mode === "review") {
+    feedback.style.color =
+      "#b91c1c";
+
+
+    if (
+      mode === "review"
+    ) {
 
       reviewQuestions.push(
         reviewQuestions[
@@ -3741,69 +5983,106 @@ function handleMapAnswer(
   }
 
 
-  feedback.classList.remove(
-    "hidden"
-  );
+  feedback
+    .classList
+    .remove(
+      "hidden"
+    );
 
 
   setTimeout(
     () => {
 
-      if (mode === "review") {
+      if (
+        mode === "review"
+      ) {
 
         currentQuestionIndex++;
+
         showMapReviewQuestion();
 
       } else {
 
         currentTestIndex++;
+
         showMapTestQuestion();
       }
 
     },
-    1000
+    1100
   );
 }
 
 
 // ============================================================
-// ZOOM / PAN CARTE
+// NAVIGATION CARTE
 // ============================================================
 
-function setupMapNavigation(svg) {
+function setupMapNavigation(
+  svg
+) {
 
-  setupMapZoom(svg);
-  setupMapPan(svg);
-  setupMouseWheelZoom(svg);
+  setupMapZoom(
+    svg
+  );
+
+  setupMapPan(
+    svg
+  );
+
+  setupMouseWheelZoom(
+    svg
+  );
 }
 
 
+// ============================================================
+// ZOOM CARTE
+// ============================================================
+
 function setupMapZoom(svg) {
 
-  document
-    .getElementById(
+  const zoomIn =
+    document.getElementById(
       "map-zoom-in"
-    )
-    ?.addEventListener(
-      "click",
-      () => zoomMap(svg, 0.8)
     );
 
 
-  document
-    .getElementById(
+  const zoomOut =
+    document.getElementById(
       "map-zoom-out"
-    )
-    ?.addEventListener(
-      "click",
-      () => zoomMap(svg, 1.25)
     );
 
 
-  document
-    .getElementById(
+  const reset =
+    document.getElementById(
       "map-reset"
-    )
+    );
+
+
+  zoomIn
+    ?.addEventListener(
+      "click",
+      () =>
+        zoomMap(
+          svg,
+          0.8
+        )
+    );
+
+
+  zoomOut
+    ?.addEventListener(
+      "click",
+      () =>
+        zoomMap(
+          svg,
+          1.25
+        )
+    );
+
+
+  reset
     ?.addEventListener(
       "click",
       () => {
@@ -3812,19 +6091,24 @@ function setupMapZoom(svg) {
           ...mapOriginalViewBox
         };
 
-        applyMapViewBox(svg);
+        applyMapViewBox(
+          svg
+        );
       }
     );
 }
 
 
-function setupMouseWheelZoom(svg) {
+function setupMouseWheelZoom(
+  svg
+) {
 
   svg.addEventListener(
     "wheel",
     event => {
 
       event.preventDefault();
+
 
       zoomMap(
         svg,
@@ -3834,16 +6118,27 @@ function setupMouseWheelZoom(svg) {
       );
 
     },
-    { passive: false }
+    {
+      passive: false
+    }
   );
 }
 
 
-function zoomMap(svg, factor) {
+function zoomMap(
+  svg,
+  factor
+) {
+
+  if (
+    !mapCurrentViewBox
+  ) return;
+
 
   const centerX =
     mapCurrentViewBox.x +
     mapCurrentViewBox.width / 2;
+
 
   const centerY =
     mapCurrentViewBox.y +
@@ -3854,6 +6149,7 @@ function zoomMap(svg, factor) {
     mapCurrentViewBox.width *
     factor;
 
+
   const height =
     mapCurrentViewBox.height *
     factor;
@@ -3862,16 +6158,20 @@ function zoomMap(svg, factor) {
   if (
     width < 80 ||
     width > 360
-  ) return;
+  ) {
+    return;
+  }
 
 
   mapCurrentViewBox = {
 
     x:
-      centerX - width / 2,
+      centerX -
+      width / 2,
 
     y:
-      centerY - height / 2,
+      centerY -
+      height / 2,
 
     width,
     height
@@ -3879,9 +6179,16 @@ function zoomMap(svg, factor) {
 
 
   clampMapViewBox();
-  applyMapViewBox(svg);
+
+  applyMapViewBox(
+    svg
+  );
 }
 
+
+// ============================================================
+// PAN / DRAG CARTE
+// ============================================================
 
 function setupMapPan(svg) {
 
@@ -3898,6 +6205,11 @@ function setupMapPan(svg) {
   svg.addEventListener(
     "pointerdown",
     event => {
+
+      if (
+        !mapCurrentViewBox
+      ) return;
+
 
       pointerDown = true;
       dragging = false;
@@ -3925,22 +6237,32 @@ function setupMapPan(svg) {
       if (
         !pointerDown ||
         event.pointerId !==
-        activePointerId
-      ) return;
+        activePointerId ||
+        !startViewBox
+      ) {
+        return;
+      }
 
 
-      const dx =
-        event.clientX - startX;
+      const deltaPixelsX =
+        event.clientX -
+        startX;
 
-      const dy =
-        event.clientY - startY;
+
+      const deltaPixelsY =
+        event.clientY -
+        startY;
 
 
       if (
         !dragging &&
         (
-          Math.abs(dx) > 6 ||
-          Math.abs(dy) > 6
+          Math.abs(
+            deltaPixelsX
+          ) > 6 ||
+          Math.abs(
+            deltaPixelsY
+          ) > 6
         )
       ) {
 
@@ -3950,38 +6272,62 @@ function setupMapPan(svg) {
           "map-dragging"
         );
 
+
         try {
+
           svg.setPointerCapture(
             event.pointerId
           );
-        } catch {}
+
+        } catch (error) {}
       }
 
 
-      if (!dragging) return;
+      if (!dragging) {
+        return;
+      }
+
+
+      event.preventDefault();
 
 
       const rect =
         svg.getBoundingClientRect();
 
 
+      if (
+        rect.width === 0 ||
+        rect.height === 0
+      ) {
+        return;
+      }
+
+
+      const deltaMapX =
+        deltaPixelsX *
+        (
+          startViewBox.width /
+          rect.width
+        );
+
+
+      const deltaMapY =
+        deltaPixelsY *
+        (
+          startViewBox.height /
+          rect.height
+        );
+
+
       mapCurrentViewBox = {
 
         x:
           startViewBox.x -
-          dx *
-          (
-            startViewBox.width /
-            rect.width
-          ),
+          deltaMapX,
 
         y:
           startViewBox.y -
-          dy *
-          (
-            startViewBox.height /
-            rect.height
-          ),
+          deltaMapY,
 
         width:
           startViewBox.width,
@@ -3992,18 +6338,23 @@ function setupMapPan(svg) {
 
 
       clampMapViewBox();
-      applyMapViewBox(svg);
+
+      applyMapViewBox(
+        svg
+      );
     }
   );
 
 
-  const finish =
+  const finishPointer =
     event => {
 
       if (
         event.pointerId !==
         activePointerId
-      ) return;
+      ) {
+        return;
+      }
 
 
       if (dragging) {
@@ -4011,13 +6362,34 @@ function setupMapPan(svg) {
         svg.dataset.ignoreMapClick =
           "true";
 
+
         setTimeout(
-          () =>
+          () => {
+
             svg.dataset.ignoreMapClick =
-              "false",
+              "false";
+
+          },
           100
         );
       }
+
+
+      try {
+
+        if (
+          svg.hasPointerCapture &&
+          svg.hasPointerCapture(
+            event.pointerId
+          )
+        ) {
+
+          svg.releasePointerCapture(
+            event.pointerId
+          );
+        }
+
+      } catch (error) {}
 
 
       pointerDown = false;
@@ -4025,6 +6397,7 @@ function setupMapPan(svg) {
 
       activePointerId = null;
       startViewBox = null;
+
 
       svg.classList.remove(
         "map-dragging"
@@ -4034,17 +6407,27 @@ function setupMapPan(svg) {
 
   svg.addEventListener(
     "pointerup",
-    finish
+    finishPointer
   );
+
 
   svg.addEventListener(
     "pointercancel",
-    finish
+    finishPointer
   );
 }
 
 
+// ============================================================
+// LIMITES CARTE
+// ============================================================
+
 function clampMapViewBox() {
+
+  if (
+    !mapCurrentViewBox
+  ) return;
+
 
   const minX = 360;
   const maxX = 760;
@@ -4053,43 +6436,73 @@ function clampMapViewBox() {
   const maxY = 315;
 
 
-  mapCurrentViewBox.x =
-    Math.max(
-      minX,
-      Math.min(
-        mapCurrentViewBox.x,
-        maxX -
-        mapCurrentViewBox.width
-      )
-    );
+  if (
+    mapCurrentViewBox.x <
+    minX
+  ) {
+
+    mapCurrentViewBox.x =
+      minX;
+  }
 
 
-  mapCurrentViewBox.y =
-    Math.max(
-      minY,
-      Math.min(
-        mapCurrentViewBox.y,
-        maxY -
-        mapCurrentViewBox.height
-      )
-    );
+  if (
+    mapCurrentViewBox.y <
+    minY
+  ) {
+
+    mapCurrentViewBox.y =
+      minY;
+  }
+
+
+  if (
+    mapCurrentViewBox.x +
+    mapCurrentViewBox.width >
+    maxX
+  ) {
+
+    mapCurrentViewBox.x =
+      maxX -
+      mapCurrentViewBox.width;
+  }
+
+
+  if (
+    mapCurrentViewBox.y +
+    mapCurrentViewBox.height >
+    maxY
+  ) {
+
+    mapCurrentViewBox.y =
+      maxY -
+      mapCurrentViewBox.height;
+  }
 }
 
 
-function applyMapViewBox(svg) {
+// ============================================================
+// APPLIQUER VIEWBOX
+// ============================================================
+
+function applyMapViewBox(
+  svg
+) {
+
+  if (
+    !mapCurrentViewBox
+  ) return;
+
 
   svg.setAttribute(
     "viewBox",
-    `${mapCurrentViewBox.x}
-     ${mapCurrentViewBox.y}
-     ${mapCurrentViewBox.width}
-     ${mapCurrentViewBox.height}`
+    `${mapCurrentViewBox.x} ${mapCurrentViewBox.y} ${mapCurrentViewBox.width} ${mapCurrentViewBox.height}`
   );
 }
 
 
 // ============================================================
-// RESULTAT TEST
+// FIN DE TEST
 // ============================================================
 
 function showTestFinished() {
@@ -4097,30 +6510,87 @@ function showTestFinished() {
   const total =
     testQuestions.length;
 
+
   const percentage =
-    total
+    total > 0
       ? Math.round(
-          testScore /
-          total *
+          (
+            testScore /
+            total
+          ) *
           100
         )
       : 0;
 
 
+  let message =
+    "Continue à t’entraîner 💪";
+
+
+  if (
+    percentage >= 90
+  ) {
+
+    message =
+      "Excellent travail ! 🌟";
+
+  } else if (
+    percentage >= 75
+  ) {
+
+    message =
+      "Très bon résultat ! 👏";
+
+  } else if (
+    percentage >= 60
+  ) {
+
+    message =
+      "Bien joué ! 👍";
+  }
+
+
+  title.textContent =
+    currentChapter.name;
+
+  subtitle.textContent =
+    "Test terminé";
+
+
   container.innerHTML = `
     <div class="review-box">
 
-      <div class="subject-icon">
+      <div
+        class="subject-icon"
+        style="font-size:60px;"
+      >
         🎯
       </div>
+
 
       <div class="review-question">
         ${testScore} / ${total}
       </div>
 
-      <div class="review-answer">
+
+      <div
+        class="review-answer"
+        style="font-size:30px;"
+      >
         ${percentage} %
       </div>
+
+
+      <div
+        class="mode-description"
+        style="
+          font-size:18px;
+          margin-bottom:30px;
+        "
+      >
+        ${message}
+      </div>
+
 
       <button
         id="test-back"
@@ -4134,7 +6604,9 @@ function showTestFinished() {
 
 
   document
-    .getElementById("test-back")
+    .getElementById(
+      "test-back"
+    )
     .addEventListener(
       "click",
       () => {
@@ -4160,7 +6632,7 @@ function showTestFinished() {
 
 
 // ============================================================
-// REPONSES
+// VALIDATION REPONSES GENERIQUES
 // ============================================================
 
 function isAcceptedWrittenAnswer(
@@ -4169,22 +6641,46 @@ function isAcceptedWrittenAnswer(
 ) {
 
   const normalizedUser =
-    normalizeAnswer(user);
+    normalizeAnswer(
+      user
+    );
+
 
   const normalizedExpected =
-    normalizeAnswer(expected);
+    normalizeAnswer(
+      expected
+    );
 
 
   if (
     normalizedUser ===
     normalizedExpected
-  ) return true;
+  ) {
+    return true;
+  }
 
+
+  /*
+    Pour le vocabulaire anglais :
+    permet plusieurs traductions écrites
+    sous la forme :
+    "duvet, couette"
+    ou
+    "Va-t-en ! / Allez-vous en !"
+  */
 
   const alternatives =
     String(expected)
-      .split(/\s*\/\s*|,\s*/)
-      .map(normalizeAnswer);
+      .split(
+        /\s*\/\s*|,\s*/
+      )
+      .map(
+        alternative =>
+          normalizeAnswer(
+            alternative
+          )
+      )
+      .filter(Boolean);
 
 
   return alternatives.includes(
@@ -4193,9 +6689,15 @@ function isAcceptedWrittenAnswer(
 }
 
 
+// ============================================================
+// NORMALISATION
+// ============================================================
+
 function normalizeAnswer(value) {
 
-  return String(value || "")
+  return String(
+    value || ""
+  )
     .toLowerCase()
     .normalize("NFD")
     .replace(
@@ -4219,10 +6721,12 @@ function normalizeAnswer(value) {
 
 
 // ============================================================
-// RETOUR
+// BOUTON RETOUR
 // ============================================================
 
-function addBackButton(callback) {
+function addBackButton(
+  callback
+) {
 
   const back =
     document.createElement("div");
@@ -4236,6 +6740,7 @@ function addBackButton(callback) {
   back.style.padding =
     "16px 20px";
 
+
   back.innerHTML = `
     <div
       class="subject-name"
@@ -4248,12 +6753,16 @@ function addBackButton(callback) {
     </div>
   `;
 
+
   back.addEventListener(
     "click",
     callback
   );
 
-  container.appendChild(back);
+
+  container.appendChild(
+    back
+  );
 }
 
 
@@ -4264,8 +6773,11 @@ function addBackButton(callback) {
 function shuffleArray(array) {
 
   for (
-    let i = array.length - 1;
+    let i =
+      array.length - 1;
+
     i > 0;
+
     i--
   ) {
 
@@ -4274,6 +6786,7 @@ function shuffleArray(array) {
         Math.random() *
         (i + 1)
       );
+
 
     [
       array[i],
@@ -4287,15 +6800,32 @@ function shuffleArray(array) {
 
 
 // ============================================================
-// SECURITE TEXTE
+// SECURISER LE TEXTE HTML
 // ============================================================
 
 function escapeHtml(value) {
 
-  return String(value ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
+  return String(
+    value ?? ""
+  )
+    .replace(
+      /&/g,
+      "&amp;"
+    )
+    .replace(
+      /</g,
+      "&lt;"
+    )
+    .replace(
+      />/g,
+      "&gt;"
+    )
+    .replace(
+      /"/g,
+      "&quot;"
+    )
+    .replace(
+      /'/g,
+      "&#039;"
+    );
 }
