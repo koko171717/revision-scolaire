@@ -2077,22 +2077,24 @@ async function startFrenchClozeTest(
   if (!cards) return;
 
 
-  testQuestions =
-    cards
-      .filter(card =>
-        card.cloze_sentence &&
+ testQuestions =
+  cards
+    .filter(card =>
+      card.cloze_sentence &&
+      card.cloze_answer
+    )
+    .map(card => ({
+
+      question:
+        card.cloze_sentence,
+
+      hint:
+        card.cloze_hint,
+
+      answer:
         card.cloze_answer
-      )
-      .map(card => ({
 
-        question:
-          card.cloze_sentence,
-
-        answer:
-          card.cloze_answer,
-
-        accepted_answers:
-          card.accepted_answers || []
+    }));
 
       }));
 
