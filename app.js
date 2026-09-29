@@ -16,7 +16,7 @@ const supabaseClient =
 
 
 // ============================================================
-// ÉLÉMENTS PRINCIPAUX
+// ELEMENTS PRINCIPAUX
 // ============================================================
 
 const container =
@@ -30,28 +30,22 @@ const subtitle =
 
 
 // ============================================================
-// ÉTAT DE NAVIGATION
+// ETAT GENERAL
 // ============================================================
 
 let currentSubject = null;
 let currentChapter = null;
 
 let allSubjectChapters = [];
-
 let navigationStack = [];
 
 
 // ============================================================
-// RÉVISION
+// REVISION / TEST
 // ============================================================
 
 let reviewQuestions = [];
 let currentQuestionIndex = 0;
-
-
-// ============================================================
-// TEST
-// ============================================================
 
 let testQuestions = [];
 let currentTestIndex = 0;
@@ -69,7 +63,19 @@ let mapCurrentViewBox = null;
 
 
 // ============================================================
-// DÉMARRAGE
+// FRANCAIS
+// ============================================================
+
+let frenchLearningCards = [];
+let frenchLearningIndex = 0;
+let frenchLearningScore = 0;
+
+let oppositeQuestions = [];
+let oppositeIndex = 0;
+
+
+// ============================================================
+// DEMARRAGE
 // ============================================================
 
 loadSubjects();
@@ -96,26 +102,18 @@ async function loadSubjects() {
   container.innerHTML =
     "<p>Chargement...</p>";
 
-  const {
-    data,
-    error
-  } = await supabaseClient
-    .from("subjects")
-    .select("*")
-    .order(
-      "sort_order",
-      { ascending: true }
-    );
+  const { data, error } =
+    await supabaseClient
+      .from("subjects")
+      .select("*")
+      .order("sort_order");
 
   if (error) {
 
     console.error(error);
 
-    container.innerHTML = `
-      <p>
-        Impossible de charger les matières.
-      </p>
-    `;
+    container.innerHTML =
+      "<p>Impossible de charger les matières.</p>";
 
     return;
   }
@@ -151,14 +149,13 @@ async function loadSubjects() {
 
 
 // ============================================================
-// OUVRIR UNE MATIÈRE
+// OUVRIR UNE MATIERE
 // ============================================================
 
 async function openSubject(subject) {
 
   currentSubject = subject;
   currentChapter = null;
-
   navigationStack = [];
 
   title.textContent =
@@ -170,30 +167,19 @@ async function openSubject(subject) {
   container.innerHTML =
     "<p>Chargement...</p>";
 
-  const {
-    data,
-    error
-  } = await supabaseClient
-    .from("chapters")
-    .select("*")
-    .eq(
-      "subject_id",
-      subject.id
-    )
-    .order(
-      "sort_order",
-      { ascending: true }
-    );
+  const { data, error } =
+    await supabaseClient
+      .from("chapters")
+      .select("*")
+      .eq("subject_id", subject.id)
+      .order("sort_order");
 
   if (error) {
 
     console.error(error);
 
-    container.innerHTML = `
-      <p>
-        Impossible de charger les chapitres.
-      </p>
-    `;
+    container.innerHTML =
+      "<p>Impossible de charger les chapitres.</p>";
 
     return;
   }
@@ -206,12 +192,10 @@ async function openSubject(subject) {
 
 
 // ============================================================
-// AFFICHAGE D'UN NIVEAU DE CHAPITRES
+// NAVIGATION CHAPITRES / SOUS-CHAPITRES
 // ============================================================
 
-function renderChapterLevel(
-  parentChapterId
-) {
+function renderChapterLevel(parentId) {
 
   container.innerHTML = "";
 
@@ -219,22 +203,13 @@ function renderChapterLevel(
     allSubjectChapters
       .filter(chapter => {
 
-        if (
-          parentChapterId === null
-        ) {
-
-          return (
-            chapter.parent_chapter_id === null
-          );
+        if (parentId === null) {
+          return chapter.parent_chapter_id === null;
         }
 
         return (
-          Number(
-            chapter.parent_chapter_id
-          ) ===
-          Number(
-            parentChapterId
-          )
+          Number(chapter.parent_chapter_id) ===
+          Number(parentId)
         );
       })
       .sort(
@@ -244,13 +219,7 @@ function renderChapterLevel(
       );
 
 
-  // ----------------------------------------------------------
-  // TITRE
-  // ----------------------------------------------------------
-
-  if (
-    navigationStack.length === 0
-  ) {
+  if (navigationStack.length === 0) {
 
     title.textContent =
       currentSubject.name;
@@ -260,320 +229,29 @@ function renderChapterLevel(
 
   } else {
 
-    const currentParent =
+    const parent =
       navigationStack[
         navigationStack.length - 1
       ];
 
     title.textContent =
-      currentParent.name;
+      parent.name;
 
     subtitle.textContent =
       "Choisis une partie";
   }
 
 
-  // ----------------------------------------------------------
-  // RETOUR
-  // ----------------------------------------------------------
-
   addBackButton(() => {
 
-    if (
-      navigationStack.length === 0
-    ) {
-
+    if (navigationStack.length === 0) {
       loadSubjects();
       return;
     }
 
     navigationStack.pop();
 
-    if (
-      navigationStack.length === 0
-    ) {
-
-      renderChapterLevel(null);
-
-    } else {
-
-      const previousParent =
-        navigationStack[
-          navigationStack.length - 1
-        ];
-
-      renderChapterLevel(
-        previousParent.id
-      );
-    }
-  });
-
-
-  // ----------------------------------------------------------
-  // AUCUN CHAPITRE
-  // ----------------------------------------------------------
-
-  if (
-    children.length === 0
-  ) {
-
-    const empty =
-      document.createElement("div");
-
-    empty.className =
-      "subject-card disabled-card";
-
-    empty.innerHTML = `
-      <div class="subject-icon">
-        📭
-      </div>
-
-      <div class="subject-name">
-        Aucun contenu pour le moment
-      </div>
-    `;
-
-    container.appendChild(empty);
-
-    return;
-  }
-
-
-  // ----------------------------------------------------------
-  // CARTES
-  // ----------------------------------------------------------
-
-  children.forEach(chapter => {
-
-    const hasChildren =
-      allSubjectChapters.some(
-        possibleChild =>
-          Number(
-            possibleChild.parent_chapter_id
-          ) === Number(chapter.id)
-      );
-
-
-    const card =
-      document.createElement("div");
-
-    card.className =
-      "subject-card";
-
-
-    const icon =
-      getChapterIcon(
-        chapter,
-        hasChildren
-      );
-
-
-    let description = "";
-
-    if (hasChildren) {
-
-      description =
-        "Ouvrir";
-
-    } else if (
-      chapter.content_type === "map"
-    ) {
-
-      description =
-        "Carte interactive";
-
-    } else if (
-      chapter.content_type === "flags"
-    ) {
-
-      description =
-        "Drapeaux";
-
-    } else if (
-      chapter.test_mode === "qcm"
-    ) {
-
-      description =
-        "Révision + QCM";
-
-    } else if (
-      chapter.test_mode === "written"
-    ) {
-
-      description =
-        "Cartes + test écrit";
-    }
-
-
-    card.innerHTML = `
-      <div class="subject-icon">
-        ${icon}
-      </div>
-
-      <div class="subject-name">
-        ${escapeHtml(chapter.name)}
-      </div>
-
-      ${
-        description
-          ? `
-            <div class="mode-description">
-              ${description}
-            </div>
-          `
-          : ""
-      }
-    `;
-
-
-    card.addEventListener(
-      "click",
-      () => {
-
-        if (hasChildren) {
-
-          navigationStack.push(
-            chapter
-          );
-
-          renderChapterLevel(
-            chapter.id
-          );
-
-        } else {
-
-          showModes(
-            chapter
-          );
-        }
-      }
-    );
-
-
-    container.appendChild(card);
-  });
-}
-
-
-// ============================================================
-// ICÔNES
-// ============================================================
-
-function getChapterIcon(
-  chapter,
-  hasChildren
-) {
-
-  if (
-    chapter.name === "Vocabulaire"
-  ) {
-    return "🔤";
-  }
-
-  if (
-    chapter.name === "Grammaire"
-  ) {
-    return "✏️";
-  }
-
-  if (
-    /^TS\d+/i.test(
-      chapter.name
-    )
-  ) {
-    return "📝";
-  }
-
-  if (
-    chapter.name.includes(
-      "Unit"
-    )
-  ) {
-    return "📚";
-  }
-
-  if (
-    chapter.name === "Family"
-  ) {
-    return "👨‍👩‍👧";
-  }
-
-  if (
-    chapter.name === "Housework"
-  ) {
-    return "🧹";
-  }
-
-  if (
-    chapter.name === "Home objects"
-  ) {
-    return "🏠";
-  }
-
-  if (
-    chapter.name ===
-    "Words and phrases"
-  ) {
-    return "💬";
-  }
-
-  if (
-    chapter.name ===
-    "Everyday English"
-  ) {
-    return "🗣️";
-  }
-
-  if (
-    chapter.name
-      .toLowerCase()
-      .includes("toute")
-  ) {
-    return "🎯";
-  }
-
-  if (
-    chapter.content_type === "flags"
-  ) {
-    return "🏳️";
-  }
-
-  if (
-    chapter.content_type === "map"
-  ) {
-    return "🗺️";
-  }
-
-  if (hasChildren) {
-    return "📂";
-  }
-
-  return "📘";
-}
-
-
-// ============================================================
-// CHOIX RÉVISION / TEST
-// ============================================================
-
-function showModes(chapter) {
-
-  currentChapter = chapter;
-
-  title.textContent =
-    chapter.name;
-
-  subtitle.textContent =
-    "Choisis ton mode";
-
-  container.innerHTML = "";
-
-
-  addBackButton(() => {
-
-    if (
-      navigationStack.length === 0
-    ) {
+    if (navigationStack.length === 0) {
 
       renderChapterLevel(null);
 
@@ -584,108 +262,217 @@ function showModes(chapter) {
           navigationStack.length - 1
         ];
 
-      renderChapterLevel(
-        parent.id
-      );
+      renderChapterLevel(parent.id);
     }
   });
 
 
-  // ----------------------------------------------------------
-  // RÉVISION
-  // ----------------------------------------------------------
+  if (children.length === 0) {
 
-  const revisionCard =
-    document.createElement("div");
+    const empty =
+      document.createElement("div");
 
-  revisionCard.className =
-    "subject-card";
+    empty.className =
+      "subject-card disabled-card";
 
-
-  if (
-    chapter.content_type === "flags"
-  ) {
-
-    revisionCard.innerHTML = `
-      <div class="subject-icon">
-        🏳️
-      </div>
-
+    empty.innerHTML = `
+      <div class="subject-icon">📭</div>
       <div class="subject-name">
-        Révision
-      </div>
-
-      <div class="mode-description">
-        Drapeau → pays
+        Aucun contenu pour le moment
       </div>
     `;
 
-  } else if (
-    chapter.content_type === "map"
-  ) {
-
-    revisionCard.innerHTML = `
-      <div class="subject-icon">
-        🗺️
-      </div>
-
-      <div class="subject-name">
-        Révision
-      </div>
-
-      <div class="mode-description">
-        Retrouve les pays sur la carte
-      </div>
-    `;
-
-  } else {
-
-    revisionCard.innerHTML = `
-      <div class="subject-icon">
-        📚
-      </div>
-
-      <div class="subject-name">
-        Révision
-      </div>
-
-      <div class="mode-description">
-        Cartes de révision
-      </div>
-    `;
+    container.appendChild(empty);
+    return;
   }
 
 
-  revisionCard.addEventListener(
+  children.forEach(chapter => {
+
+    const hasChildren =
+      allSubjectChapters.some(
+        c =>
+          Number(c.parent_chapter_id) ===
+          Number(chapter.id)
+      );
+
+    const card =
+      document.createElement("div");
+
+    card.className =
+      "subject-card";
+
+    card.innerHTML = `
+      <div class="subject-icon">
+        ${getChapterIcon(chapter, hasChildren)}
+      </div>
+
+      <div class="subject-name">
+        ${escapeHtml(chapter.name)}
+      </div>
+
+      ${
+        hasChildren
+          ? `
+            <div class="mode-description">
+              Ouvrir
+            </div>
+          `
+          : ""
+      }
+    `;
+
+    card.addEventListener(
+      "click",
+      () => {
+
+        if (hasChildren) {
+
+          navigationStack.push(chapter);
+          renderChapterLevel(chapter.id);
+
+        } else {
+
+          showModes(chapter);
+        }
+      }
+    );
+
+    container.appendChild(card);
+  });
+}
+
+
+// ============================================================
+// ICONES
+// ============================================================
+
+function getChapterIcon(chapter, hasChildren) {
+
+  if (chapter.name === "Vocabulaire")
+    return "🔤";
+
+  if (chapter.name === "Grammaire")
+    return "✏️";
+
+  if (/^TS\d+/i.test(chapter.name))
+    return "📝";
+
+  if (chapter.name.includes("Unit"))
+    return "📚";
+
+  if (chapter.name === "Family")
+    return "👨‍👩‍👧";
+
+  if (chapter.name === "Housework")
+    return "🧹";
+
+  if (chapter.name === "Home objects")
+    return "🏠";
+
+  if (chapter.name === "Words and phrases")
+    return "💬";
+
+  if (chapter.name === "Everyday English")
+    return "🗣️";
+
+  if (chapter.content_type === "flags")
+    return "🏳️";
+
+  if (chapter.content_type === "map")
+    return "🗺️";
+
+  if (chapter.content_type === "french_vocab")
+    return "📖";
+
+  if (hasChildren)
+    return "📂";
+
+  return "📘";
+}
+
+
+// ============================================================
+// MODES
+// ============================================================
+
+function showModes(chapter) {
+
+  currentChapter = chapter;
+
+  // Mode spécial français
+  if (chapter.content_type === "french_vocab") {
+    showFrenchVocabModes(chapter);
+    return;
+  }
+
+  title.textContent =
+    chapter.name;
+
+  subtitle.textContent =
+    "Choisis ton mode";
+
+  container.innerHTML = "";
+
+  addBackButton(
+    goBackToChapterList
+  );
+
+
+  // REVISION
+
+  const revision =
+    document.createElement("div");
+
+  revision.className =
+    "subject-card";
+
+  revision.innerHTML = `
+    <div class="subject-icon">
+      ${
+        chapter.content_type === "map"
+          ? "🗺️"
+          : chapter.content_type === "flags"
+          ? "🏳️"
+          : "📚"
+      }
+    </div>
+
+    <div class="subject-name">
+      Révision
+    </div>
+
+    <div class="mode-description">
+      ${
+        chapter.content_type === "map"
+          ? "Retrouve les pays sur la carte"
+          : chapter.content_type === "flags"
+          ? "Drapeau → pays"
+          : "Cartes de révision"
+      }
+    </div>
+  `;
+
+  revision.addEventListener(
     "click",
     () => {
 
-      if (
-        chapter.content_type ===
-        "flags"
-      ) {
+      if (chapter.content_type === "map") {
 
-        startFlagReview(
-          chapter
-        );
+        startMapReview(chapter);
 
       } else if (
-        chapter.content_type ===
-        "map"
+        chapter.content_type === "flags"
       ) {
 
-        startMapReview(
-          chapter
-        );
+        startFlagReview(chapter);
 
       } else if (
         chapter.direction_mode ===
         "bidirectional"
       ) {
 
-        showDirectionChoice(
-          "review"
-        );
+        showDirectionChoice("review");
 
       } else {
 
@@ -697,37 +484,24 @@ function showModes(chapter) {
     }
   );
 
-
-  container.appendChild(
-    revisionCard
-  );
+  container.appendChild(revision);
 
 
-  // ----------------------------------------------------------
   // TEST
-  // ----------------------------------------------------------
 
-  const testCard =
+  const test =
     document.createElement("div");
 
+  if (chapter.test_mode === "disabled") {
 
-  if (
-    chapter.test_mode ===
-    "disabled"
-  ) {
-
-    testCard.className =
+    test.className =
       "subject-card disabled-card";
 
-    testCard.innerHTML = `
-      <div class="subject-icon">
-        🎯
-      </div>
-
+    test.innerHTML = `
+      <div class="subject-icon">🎯</div>
       <div class="subject-name">
         Test
       </div>
-
       <div class="mode-description">
         Pas de test disponible
       </div>
@@ -735,91 +509,49 @@ function showModes(chapter) {
 
   } else {
 
-    testCard.className =
+    test.className =
       "subject-card";
 
-
-    let description =
-      "Teste tes connaissances";
-
-
-    if (
-      chapter.test_mode === "written"
-    ) {
-
-      description =
-        "Écris les réponses";
-
-    } else if (
-      chapter.test_mode === "qcm"
-    ) {
-
-      description =
-        "Choisis la bonne réponse";
-
-    } else if (
-      chapter.content_type ===
-      "flags"
-    ) {
-
-      description =
-        "Choisis le bon drapeau";
-
-    } else if (
-      chapter.content_type ===
-      "map"
-    ) {
-
-      description =
-        "Retrouve 20 pays";
-    }
-
-
-    testCard.innerHTML = `
-      <div class="subject-icon">
-        🎯
-      </div>
+    test.innerHTML = `
+      <div class="subject-icon">🎯</div>
 
       <div class="subject-name">
         Test
       </div>
 
       <div class="mode-description">
-        ${description}
+        ${
+          chapter.test_mode === "written"
+            ? "Écris les réponses"
+            : chapter.test_mode === "qcm"
+            ? "Choisis la bonne réponse"
+            : "Teste tes connaissances"
+        }
       </div>
     `;
 
-
-    testCard.addEventListener(
+    test.addEventListener(
       "click",
       () => {
 
         if (
-          chapter.content_type ===
-          "flags"
+          chapter.content_type === "flags"
         ) {
 
-          startFlagTest(
-            chapter
-          );
+          startFlagTest(chapter);
 
         } else if (
-          chapter.content_type ===
-          "map"
+          chapter.content_type === "map"
         ) {
 
-          startMapTest(
-            chapter
-          );
+          startMapTest(chapter);
 
         } else if (
           chapter.direction_mode ===
           "bidirectional"
         ) {
 
-          showDirectionChoice(
-            "test"
-          );
+          showDirectionChoice("test");
 
         } else {
 
@@ -832,94 +564,970 @@ function showModes(chapter) {
     );
   }
 
-
-  container.appendChild(
-    testCard
-  );
+  container.appendChild(test);
 }
 
 
 // ============================================================
-// CHOIX DU SENS
+// MODES VOCABULAIRE FRANCAIS
 // ============================================================
 
-function showDirectionChoice(mode) {
+function showFrenchVocabModes(chapter) {
+
+  currentChapter = chapter;
+
+  title.textContent =
+    chapter.name;
+
+  subtitle.textContent =
+    "Choisis ton mode";
+
+  container.innerHTML = "";
+
+  addBackButton(
+    goBackToChapterList
+  );
+
+
+  const modes = [
+
+    {
+      icon: "📄",
+      name: "Fiche de révision",
+      description:
+        "Vocabulaire, définitions et suppléments",
+      action:
+        () => startFrenchRevisionSheet(chapter)
+    },
+
+    {
+      icon: "🧩",
+      name: "Apprentissage",
+      description:
+        "Associe le vocabulaire à la bonne définition",
+      action:
+        () => startFrenchLearning(chapter)
+    },
+
+    {
+      icon: "✍️",
+      name: "Test écrit",
+      description:
+        "Lis la définition et écris le mot",
+      action:
+        () => startFrenchWrittenTest(chapter)
+    },
+
+    {
+      icon: "🔁",
+      name: "Contraires",
+      description:
+        "Cartes de révision sur les contraires",
+      action:
+        () => showOppositeDirectionChoice(chapter)
+    }
+  ];
+
+
+  modes.forEach(mode => {
+
+    const card =
+      document.createElement("div");
+
+    card.className =
+      "subject-card";
+
+    card.innerHTML = `
+      <div class="subject-icon">
+        ${mode.icon}
+      </div>
+
+      <div class="subject-name">
+        ${mode.name}
+      </div>
+
+      <div class="mode-description">
+        ${mode.description}
+      </div>
+    `;
+
+    card.addEventListener(
+      "click",
+      mode.action
+    );
+
+    container.appendChild(card);
+  });
+}
+
+
+// ============================================================
+// FICHE DE REVISION FRANCAIS
+// ============================================================
+
+async function startFrenchRevisionSheet(chapter) {
+
+  title.textContent =
+    chapter.name;
+
+  subtitle.textContent =
+    "Fiche de révision";
+
+  container.innerHTML =
+    "<p>Chargement...</p>";
+
+  const cards =
+    await loadCards(chapter);
+
+  if (!cards) return;
+
+  container.innerHTML = "";
+
+  addBackButton(
+    () => showFrenchVocabModes(chapter)
+  );
+
+
+  const sheet =
+    document.createElement("div");
+
+  sheet.className =
+    "review-box";
+
+  sheet.style.maxWidth =
+    "850px";
+
+  sheet.style.textAlign =
+    "left";
+
+  sheet.style.padding =
+    "30px";
+
+
+  const heading =
+    document.createElement("div");
+
+  heading.innerHTML = `
+    <h2 style="
+      margin-top:0;
+      margin-bottom:8px;
+    ">
+      📄 Fiche de révision
+    </h2>
+
+    <p style="
+      color:#6b7280;
+      margin-bottom:30px;
+    ">
+      Mot • définition • supplément
+    </p>
+  `;
+
+  sheet.appendChild(heading);
+
+
+  cards.forEach(card => {
+
+    const row =
+      document.createElement("div");
+
+    row.style.padding =
+      "20px 0";
+
+    row.style.borderBottom =
+      "1px solid #e5e7eb";
+
+    row.innerHTML = `
+      <div style="
+        font-size:21px;
+        font-weight:800;
+        margin-bottom:8px;
+      ">
+        ${escapeHtml(card.answer)}
+      </div>
+
+      <div style="
+        font-size:17px;
+        line-height:1.5;
+        margin-bottom:
+        ${card.supplement ? "7px" : "0"};
+      ">
+        <strong>Définition :</strong>
+        ${escapeHtml(card.definition || card.question)}
+      </div>
+
+      ${
+        card.supplement
+          ? `
+            <div style="
+              font-size:16px;
+              line-height:1.5;
+              color:#4b5563;
+            ">
+              <strong>Supplément :</strong>
+              ${escapeHtml(card.supplement)}
+            </div>
+          `
+          : ""
+      }
+    `;
+
+    sheet.appendChild(row);
+  });
+
+
+  const bottomBack =
+    document.createElement("button");
+
+  bottomBack.className =
+    "secondary-button";
+
+  bottomBack.textContent =
+    "← Retour";
+
+  bottomBack.addEventListener(
+    "click",
+    () => showFrenchVocabModes(chapter)
+  );
+
+  sheet.appendChild(bottomBack);
+
+  container.appendChild(sheet);
+}
+
+
+// ============================================================
+// APPRENTISSAGE FRANCAIS
+// ============================================================
+
+async function startFrenchLearning(chapter) {
+
+  title.textContent =
+    chapter.name;
+
+  subtitle.textContent =
+    "Apprentissage";
+
+  container.innerHTML =
+    "<p>Chargement...</p>";
+
+  const cards =
+    await loadCards(chapter);
+
+  if (!cards) return;
+
+
+  frenchLearningCards =
+    cards.map(card => ({
+      ...card
+    }));
+
+  shuffleArray(
+    frenchLearningCards
+  );
+
+  frenchLearningIndex = 0;
+  frenchLearningScore = 0;
+
+  showFrenchLearningQuestion();
+}
+
+
+function showFrenchLearningQuestion() {
+
+  if (
+    frenchLearningIndex >=
+    frenchLearningCards.length
+  ) {
+
+    showFrenchLearningFinished();
+    return;
+  }
+
+
+  const current =
+    frenchLearningCards[
+      frenchLearningIndex
+    ];
+
+
+  const wrong =
+    frenchLearningCards
+      .filter(
+        card => card.id !== current.id
+      );
+
+  shuffleArray(wrong);
+
+
+  const options = [
+    current,
+    ...wrong.slice(0, 3)
+  ];
+
+  shuffleArray(options);
+
 
   title.textContent =
     currentChapter.name;
 
   subtitle.textContent =
-    mode === "review"
-      ? "Choisis le sens de révision"
-      : "Choisis le sens du test";
+    `Apprentissage • ${frenchLearningIndex + 1}/${frenchLearningCards.length}`;
+
+
+  container.innerHTML = `
+    <div class="review-box qcm-card">
+
+      <div class="qcm-topbar">
+
+        <div class="qcm-counter">
+          Carte ${frenchLearningIndex + 1}
+          <span>
+            sur ${frenchLearningCards.length}
+          </span>
+        </div>
+
+        <div class="qcm-score">
+          ⭐ ${frenchLearningScore}
+        </div>
+
+      </div>
+
+      <div class="review-question">
+        ${escapeHtml(current.answer)}
+      </div>
+
+      <div style="
+        font-size:16px;
+        color:#6b7280;
+        margin-bottom:25px;
+      ">
+        Choisis la bonne définition.
+      </div>
+
+      <div id="french-learning-options"
+           class="qcm-grid">
+
+        ${options.map(
+          (option, index) => `
+            <button
+              class="qcm-choice french-learning-choice"
+              data-id="${option.id}"
+            >
+              <span class="qcm-letter">
+                ${["A","B","C","D"][index]}
+              </span>
+
+              <span style="
+                text-align:left;
+                line-height:1.4;
+              ">
+                ${escapeHtml(
+                  option.definition ||
+                  option.question
+                )}
+
+                ${
+                  option.supplement
+                    ? `
+                      <br>
+                      <small>
+                        ${escapeHtml(
+                          option.supplement
+                        )}
+                      </small>
+                    `
+                    : ""
+                }
+              </span>
+            </button>
+          `
+        ).join("")}
+
+      </div>
+
+      <div
+        id="french-learning-feedback"
+        class="hidden"
+        style="
+          margin-top:20px;
+          font-weight:700;
+        "
+      ></div>
+
+      <button
+        id="french-learning-next"
+        class="main-button hidden"
+        style="margin-top:20px;"
+      >
+        Suivant
+      </button>
+
+      <button
+        id="quit-french-learning"
+        class="secondary-button"
+      >
+        ← Quitter
+      </button>
+
+    </div>
+  `;
+
+
+  document
+    .querySelectorAll(
+      ".french-learning-choice"
+    )
+    .forEach(button => {
+
+      button.addEventListener(
+        "click",
+        () => {
+
+          const selectedId =
+            Number(button.dataset.id);
+
+          const buttons =
+            document.querySelectorAll(
+              ".french-learning-choice"
+            );
+
+          buttons.forEach(b => {
+
+            b.disabled = true;
+
+            if (
+              Number(b.dataset.id) ===
+              Number(current.id)
+            ) {
+              b.classList.add(
+                "qcm-correct"
+              );
+            }
+          });
+
+
+          const feedback =
+            document.getElementById(
+              "french-learning-feedback"
+            );
+
+          feedback.classList.remove(
+            "hidden"
+          );
+
+
+          if (
+            selectedId ===
+            Number(current.id)
+          ) {
+
+            frenchLearningScore++;
+
+            feedback.textContent =
+              "✅ Correct !";
+
+            feedback.style.color =
+              "#15803d";
+
+          } else {
+
+            button.classList.add(
+              "qcm-wrong"
+            );
+
+            feedback.innerHTML = `
+              ❌ À revoir :
+              <strong>
+                ${escapeHtml(current.answer)}
+              </strong>
+            `;
+
+            feedback.style.color =
+              "#b91c1c";
+
+            // La carte revient plus tard
+            frenchLearningCards.push(
+              current
+            );
+          }
+
+
+          document
+            .getElementById(
+              "french-learning-next"
+            )
+            .classList.remove(
+              "hidden"
+            );
+        }
+      );
+    });
+
+
+  document
+    .getElementById(
+      "french-learning-next"
+    )
+    .addEventListener(
+      "click",
+      () => {
+
+        frenchLearningIndex++;
+        showFrenchLearningQuestion();
+      }
+    );
+
+
+  document
+    .getElementById(
+      "quit-french-learning"
+    )
+    .addEventListener(
+      "click",
+      () =>
+        showFrenchVocabModes(
+          currentChapter
+        )
+    );
+}
+
+
+function showFrenchLearningFinished() {
+
+  title.textContent =
+    currentChapter.name;
+
+  subtitle.textContent =
+    "Apprentissage terminé";
+
+  container.innerHTML = `
+    <div class="review-box">
+
+      <div class="subject-icon">
+        🎉
+      </div>
+
+      <div class="review-question">
+        Apprentissage terminé !
+      </div>
+
+      <button
+        id="restart-french-learning"
+        class="main-button"
+      >
+        Recommencer
+      </button>
+
+      <button
+        id="back-french-learning"
+        class="secondary-button"
+      >
+        Retour
+      </button>
+
+    </div>
+  `;
+
+
+  document
+    .getElementById(
+      "restart-french-learning"
+    )
+    .addEventListener(
+      "click",
+      () =>
+        startFrenchLearning(
+          currentChapter
+        )
+    );
+
+
+  document
+    .getElementById(
+      "back-french-learning"
+    )
+    .addEventListener(
+      "click",
+      () =>
+        showFrenchVocabModes(
+          currentChapter
+        )
+    );
+}
+
+
+// ============================================================
+// TEST ECRIT FRANCAIS
+// définition -> mot colonne de gauche
+// ============================================================
+
+async function startFrenchWrittenTest(chapter) {
+
+  title.textContent =
+    chapter.name;
+
+  subtitle.textContent =
+    "Test écrit";
+
+  container.innerHTML =
+    "<p>Chargement...</p>";
+
+  const cards =
+    await loadCards(chapter);
+
+  if (!cards) return;
+
+
+  testQuestions =
+    cards.map(card => ({
+      question:
+        card.definition ||
+        card.question,
+
+      answer:
+        card.answer,
+
+      supplement:
+        card.supplement
+    }));
+
+
+  shuffleArray(
+    testQuestions
+  );
+
+
+  testQuestions =
+    testQuestions.slice(
+      0,
+      20
+    );
+
+
+  currentTestIndex = 0;
+  testScore = 0;
+
+  showFrenchWrittenQuestion();
+}
+
+
+function showFrenchWrittenQuestion() {
+
+  if (
+    currentTestIndex >=
+    testQuestions.length
+  ) {
+
+    showTestFinished();
+    return;
+  }
+
+
+  const current =
+    testQuestions[
+      currentTestIndex
+    ];
+
+
+  const progress =
+    ((currentTestIndex + 1) /
+      testQuestions.length) * 100;
+
+
+  container.innerHTML = `
+    <div class="review-box">
+
+      <div class="qcm-topbar">
+
+        <div class="qcm-counter">
+          Question ${currentTestIndex + 1}
+          <span>
+            sur ${testQuestions.length}
+          </span>
+        </div>
+
+        <div class="qcm-score">
+          ⭐ ${testScore}
+        </div>
+
+      </div>
+
+
+      <div class="qcm-progress">
+
+        <div
+          class="qcm-progress-bar"
+          style="width:${progress}%"
+        ></div>
+
+      </div>
+
+
+      <div style="
+        font-size:16px;
+        color:#6b7280;
+        margin-bottom:10px;
+      ">
+        Quel mot ou quelle expression correspond
+        à cette définition ?
+      </div>
+
+
+      <div class="review-question">
+        ${escapeHtml(current.question)}
+      </div>
+
+
+      <input
+        id="french-written-answer"
+        type="text"
+        autocomplete="off"
+        spellcheck="false"
+        placeholder="Écris le mot ou l’expression"
+        style="
+          width:100%;
+          padding:18px;
+          font-size:20px;
+          border:2px solid #d1d5db;
+          border-radius:16px;
+          margin-bottom:18px;
+        "
+      />
+
+
+      <button
+        id="validate-french-written"
+        class="main-button"
+      >
+        Valider
+      </button>
+
+
+      <div
+        id="french-written-feedback"
+        class="hidden"
+        style="
+          margin-top:25px;
+          font-size:19px;
+          font-weight:700;
+        "
+      ></div>
+
+
+      <button
+        id="next-french-written"
+        class="main-button hidden"
+        style="margin-top:20px;"
+      >
+        Question suivante
+      </button>
+
+
+      <button
+        id="quit-french-written"
+        class="secondary-button"
+      >
+        ← Quitter
+      </button>
+
+    </div>
+  `;
+
+
+  const input =
+    document.getElementById(
+      "french-written-answer"
+    );
+
+  input.focus();
+
+
+  input.addEventListener(
+    "keydown",
+    event => {
+
+      if (event.key !== "Enter")
+        return;
+
+      if (
+        !document
+          .getElementById(
+            "validate-french-written"
+          )
+          .classList
+          .contains("hidden")
+      ) {
+
+        validateFrenchWrittenAnswer();
+
+      } else {
+
+        currentTestIndex++;
+        showFrenchWrittenQuestion();
+      }
+    }
+  );
+
+
+  document
+    .getElementById(
+      "validate-french-written"
+    )
+    .addEventListener(
+      "click",
+      validateFrenchWrittenAnswer
+    );
+
+
+  document
+    .getElementById(
+      "next-french-written"
+    )
+    .addEventListener(
+      "click",
+      () => {
+
+        currentTestIndex++;
+        showFrenchWrittenQuestion();
+      }
+    );
+
+
+  document
+    .getElementById(
+      "quit-french-written"
+    )
+    .addEventListener(
+      "click",
+      () =>
+        showFrenchVocabModes(
+          currentChapter
+        )
+    );
+}
+
+
+function validateFrenchWrittenAnswer() {
+
+  const current =
+    testQuestions[
+      currentTestIndex
+    ];
+
+  const input =
+    document.getElementById(
+      "french-written-answer"
+    );
+
+  const feedback =
+    document.getElementById(
+      "french-written-feedback"
+    );
+
+  const validate =
+    document.getElementById(
+      "validate-french-written"
+    );
+
+  const next =
+    document.getElementById(
+      "next-french-written"
+    );
+
+
+  const user =
+    input.value.trim();
+
+  if (!user)
+    return;
+
+
+  const correct =
+    normalizeAnswer(user) ===
+    normalizeAnswer(
+      current.answer
+    );
+
+
+  input.disabled = true;
+
+  validate.classList.add(
+    "hidden"
+  );
+
+  feedback.classList.remove(
+    "hidden"
+  );
+
+  next.classList.remove(
+    "hidden"
+  );
+
+
+  if (correct) {
+
+    testScore++;
+
+    feedback.innerHTML =
+      "✅ Correct !";
+
+    feedback.style.color =
+      "#15803d";
+
+  } else {
+
+    feedback.innerHTML = `
+      ❌ Réponse attendue :
+      <br>
+      <strong>
+        ${escapeHtml(current.answer)}
+      </strong>
+    `;
+
+    feedback.style.color =
+      "#b91c1c";
+  }
+}
+
+
+// ============================================================
+// CONTRAIRES
+// ============================================================
+
+function showOppositeDirectionChoice(chapter) {
+
+  title.textContent =
+    chapter.name;
+
+  subtitle.textContent =
+    "Cartes des contraires";
 
   container.innerHTML = "";
 
-
-  addBackButton(() => {
-    showModes(
-      currentChapter
-    );
-  });
-
-
-  const isLanguage =
-    ["Anglais", "Allemand", "Français"]
-      .includes(
-        currentSubject?.name
-      );
+  addBackButton(
+    () => showFrenchVocabModes(chapter)
+  );
 
 
   const choices = [
 
     {
-      direction:
-        "forward",
-
-      icon:
-        "➡️",
-
-      title:
-        isLanguage
-          ? getForwardLanguageLabel()
-          : "Sens normal",
-
-      description:
-        isLanguage
-          ? getForwardLanguageExample()
-          : "Question → réponse"
+      icon: "➡️",
+      title: "Mot → contraire",
+      direction: "forward"
     },
 
     {
-      direction:
-        "reverse",
-
-      icon:
-        "⬅️",
-
-      title:
-        isLanguage
-          ? getReverseLanguageLabel()
-          : "Sens inverse",
-
-      description:
-        isLanguage
-          ? getReverseLanguageExample()
-          : "Réponse → question"
+      icon: "⬅️",
+      title: "Contraire → mot",
+      direction: "reverse"
     },
 
     {
-      direction:
-        "both",
-
-      icon:
-        "🔀",
-
-      title:
-        "Les deux",
-
-      description:
-        "Mélange les deux sens"
+      icon: "🔀",
+      title: "Les deux",
+      direction: "both"
     }
   ];
 
@@ -940,9 +1548,409 @@ function showDirectionChoice(mode) {
       <div class="subject-name">
         ${choice.title}
       </div>
+    `;
 
-      <div class="mode-description">
-        ${choice.description}
+    card.addEventListener(
+      "click",
+      () =>
+        startOppositeCards(
+          chapter,
+          choice.direction
+        )
+    );
+
+    container.appendChild(card);
+  });
+}
+
+
+async function startOppositeCards(
+  chapter,
+  direction
+) {
+
+  title.textContent =
+    chapter.name;
+
+  subtitle.textContent =
+    "Cartes des contraires";
+
+  container.innerHTML =
+    "<p>Chargement...</p>";
+
+  const cards =
+    await loadCards(chapter);
+
+  if (!cards) return;
+
+
+  oppositeQuestions = [];
+
+
+  cards
+    .filter(card => card.opposite)
+    .forEach(card => {
+
+      if (
+        direction === "forward" ||
+        direction === "both"
+      ) {
+
+        oppositeQuestions.push({
+          question:
+            card.answer,
+
+          answer:
+            card.opposite
+        });
+      }
+
+
+      if (
+        direction === "reverse" ||
+        direction === "both"
+      ) {
+
+        oppositeQuestions.push({
+          question:
+            card.opposite,
+
+          answer:
+            card.answer
+        });
+      }
+    });
+
+
+  shuffleArray(
+    oppositeQuestions
+  );
+
+  oppositeIndex = 0;
+
+  showOppositeCard(direction);
+}
+
+
+function showOppositeCard(direction) {
+
+  if (
+    oppositeIndex >=
+    oppositeQuestions.length
+  ) {
+
+    showOppositeFinished(direction);
+    return;
+  }
+
+
+  const current =
+    oppositeQuestions[
+      oppositeIndex
+    ];
+
+
+  subtitle.textContent =
+    `Contraire ${oppositeIndex + 1}/${oppositeQuestions.length}`;
+
+
+  container.innerHTML = `
+    <div class="review-box">
+
+      <div style="
+        color:#6b7280;
+        font-weight:700;
+        margin-bottom:15px;
+      ">
+        Quel est le contraire ?
+      </div>
+
+      <div class="review-question">
+        ${escapeHtml(current.question)}
+      </div>
+
+      <button
+        id="show-opposite"
+        class="main-button"
+      >
+        Voir la réponse
+      </button>
+
+      <div
+        id="opposite-answer-area"
+        class="hidden"
+      >
+
+        <div class="review-answer">
+          ${escapeHtml(current.answer)}
+        </div>
+
+        <div class="review-actions">
+
+          <button
+            id="opposite-wrong"
+            class="review-button"
+          >
+            ❌ À revoir
+          </button>
+
+          <button
+            id="opposite-correct"
+            class="review-button"
+          >
+            ✅ Je savais
+          </button>
+
+        </div>
+
+      </div>
+
+      <button
+        id="quit-opposites"
+        class="secondary-button review-back-button"
+      >
+        ← Quitter
+      </button>
+
+    </div>
+  `;
+
+
+  document
+    .getElementById(
+      "show-opposite"
+    )
+    .addEventListener(
+      "click",
+      () => {
+
+        document
+          .getElementById(
+            "opposite-answer-area"
+          )
+          .classList.remove("hidden");
+
+        document
+          .getElementById(
+            "show-opposite"
+          )
+          .classList.add("hidden");
+      }
+    );
+
+
+  document
+    .getElementById(
+      "opposite-correct"
+    )
+    .addEventListener(
+      "click",
+      () => {
+
+        oppositeIndex++;
+        showOppositeCard(direction);
+      }
+    );
+
+
+  document
+    .getElementById(
+      "opposite-wrong"
+    )
+    .addEventListener(
+      "click",
+      () => {
+
+        oppositeQuestions.push(
+          current
+        );
+
+        oppositeIndex++;
+        showOppositeCard(direction);
+      }
+    );
+
+
+  document
+    .getElementById(
+      "quit-opposites"
+    )
+    .addEventListener(
+      "click",
+      () =>
+        showOppositeDirectionChoice(
+          currentChapter
+        )
+    );
+}
+
+
+function showOppositeFinished(direction) {
+
+  container.innerHTML = `
+    <div class="review-box">
+
+      <div class="subject-icon">
+        🎉
+      </div>
+
+      <div class="review-question">
+        Contraires terminés !
+      </div>
+
+      <button
+        id="restart-opposites"
+        class="main-button"
+      >
+        Recommencer
+      </button>
+
+      <button
+        id="back-opposites"
+        class="secondary-button"
+      >
+        Retour
+      </button>
+
+    </div>
+  `;
+
+
+  document
+    .getElementById(
+      "restart-opposites"
+    )
+    .addEventListener(
+      "click",
+      () =>
+        startOppositeCards(
+          currentChapter,
+          direction
+        )
+    );
+
+
+  document
+    .getElementById(
+      "back-opposites"
+    )
+    .addEventListener(
+      "click",
+      () =>
+        showFrenchVocabModes(
+          currentChapter
+        )
+    );
+}
+
+
+// ============================================================
+// RETOUR GENERIQUE
+// ============================================================
+
+function goBackToChapterList() {
+
+  if (navigationStack.length === 0) {
+
+    renderChapterLevel(null);
+
+  } else {
+
+    const parent =
+      navigationStack[
+        navigationStack.length - 1
+      ];
+
+    renderChapterLevel(parent.id);
+  }
+}
+
+
+// ============================================================
+// CHOIX DU SENS GENERIQUE
+// ============================================================
+
+function showDirectionChoice(mode) {
+
+  title.textContent =
+    currentChapter.name;
+
+  subtitle.textContent =
+    mode === "review"
+      ? "Choisis le sens de révision"
+      : "Choisis le sens du test";
+
+  container.innerHTML = "";
+
+  addBackButton(
+    () => showModes(currentChapter)
+  );
+
+
+  let forwardTitle =
+    "Sens normal";
+
+  let reverseTitle =
+    "Sens inverse";
+
+
+  if (currentSubject?.name === "Anglais") {
+
+    forwardTitle =
+      "Anglais → Français";
+
+    reverseTitle =
+      "Français → Anglais";
+  }
+
+
+  if (currentSubject?.name === "Allemand") {
+
+    forwardTitle =
+      "Allemand → Français";
+
+    reverseTitle =
+      "Français → Allemand";
+  }
+
+
+  const choices = [
+
+    {
+      icon: "➡️",
+      title: forwardTitle,
+      direction: "forward"
+    },
+
+    {
+      icon: "⬅️",
+      title: reverseTitle,
+      direction: "reverse"
+    },
+
+    {
+      icon: "🔀",
+      title: "Les deux",
+      direction: "both"
+    }
+  ];
+
+
+  choices.forEach(choice => {
+
+    const card =
+      document.createElement("div");
+
+    card.className =
+      "subject-card";
+
+    card.innerHTML = `
+      <div class="subject-icon">
+        ${choice.icon}
+      </div>
+
+      <div class="subject-name">
+        ${choice.title}
       </div>
     `;
 
@@ -951,9 +1959,7 @@ function showDirectionChoice(mode) {
       "click",
       () => {
 
-        if (
-          mode === "review"
-        ) {
+        if (mode === "review") {
 
           startReview(
             currentChapter,
@@ -977,133 +1983,31 @@ function showDirectionChoice(mode) {
 
 
 // ============================================================
-// LIBELLÉS LANGUES
-// ============================================================
-
-function getForwardLanguageLabel() {
-
-  if (
-    currentSubject?.name ===
-    "Anglais"
-  ) {
-    return "Anglais → Français";
-  }
-
-  if (
-    currentSubject?.name ===
-    "Allemand"
-  ) {
-    return "Allemand → Français";
-  }
-
-  return "Question → réponse";
-}
-
-
-function getReverseLanguageLabel() {
-
-  if (
-    currentSubject?.name ===
-    "Anglais"
-  ) {
-    return "Français → Anglais";
-  }
-
-  if (
-    currentSubject?.name ===
-    "Allemand"
-  ) {
-    return "Français → Allemand";
-  }
-
-  return "Réponse → question";
-}
-
-
-function getForwardLanguageExample() {
-
-  if (
-    currentSubject?.name ===
-    "Anglais"
-  ) {
-    return "Ex. mother → mère";
-  }
-
-  if (
-    currentSubject?.name ===
-    "Allemand"
-  ) {
-    return "Mot allemand → français";
-  }
-
-  return "Question → réponse";
-}
-
-
-function getReverseLanguageExample() {
-
-  if (
-    currentSubject?.name ===
-    "Anglais"
-  ) {
-    return "Ex. mère → mother";
-  }
-
-  if (
-    currentSubject?.name ===
-    "Allemand"
-  ) {
-    return "Français → mot allemand";
-  }
-
-  return "Réponse → question";
-}
-
-
-// ============================================================
-// CHARGEMENT DES CARTES
+// CHARGEMENT CARTES
 // ============================================================
 
 async function loadCards(chapter) {
 
-  const {
-    data,
-    error
-  } = await supabaseClient
-    .from("cards")
-    .select("*")
-    .eq(
-      "chapter_id",
-      chapter.id
-    )
-    .eq(
-      "active",
-      true
-    )
-    .order(
-      "sort_order",
-      { ascending: true }
-    );
-
+  const { data, error } =
+    await supabaseClient
+      .from("cards")
+      .select("*")
+      .eq("chapter_id", chapter.id)
+      .eq("active", true)
+      .order("sort_order");
 
   if (error) {
 
     console.error(error);
 
-    container.innerHTML = `
-      <p>
-        Impossible de charger les questions.
-      </p>
-    `;
+    container.innerHTML =
+      "<p>Impossible de charger les questions.</p>";
 
     return null;
   }
 
 
-  if (
-    !data ||
-    data.length === 0
-  ) {
+  if (!data || data.length === 0) {
 
     container.innerHTML = `
       <div class="review-box">
@@ -1123,25 +2027,21 @@ async function loadCards(chapter) {
     `;
 
     document
-      .getElementById(
-        "empty-back"
-      )
+      .getElementById("empty-back")
       .addEventListener(
         "click",
-        () =>
-          showModes(chapter)
+        () => showModes(chapter)
       );
 
     return null;
   }
-
 
   return data;
 }
 
 
 // ============================================================
-// CONSTRUCTION QUESTIONS
+// QUESTIONS BIDIRECTIONNELLES
 // ============================================================
 
 function buildQuestions(
@@ -1160,13 +2060,8 @@ function buildQuestions(
     ) {
 
       questions.push({
-        question:
-          card.question,
-
-        answer:
-          card.answer,
-
-        card
+        question: card.question,
+        answer: card.answer
       });
     }
 
@@ -1185,20 +2080,17 @@ function buildQuestions(
           card.reverse_question,
 
         answer:
-          card.reverse_answer,
-
-        card
+          card.reverse_answer
       });
     }
   });
-
 
   return questions;
 }
 
 
 // ============================================================
-// RÉVISION TEXTE
+// REVISION GENERIQUE
 // ============================================================
 
 async function startReview(
@@ -1206,15 +2098,8 @@ async function startReview(
   direction
 ) {
 
-  title.textContent =
-    chapter.name;
-
-  subtitle.textContent =
-    "Mode Révision";
-
   container.innerHTML =
     "<p>Chargement...</p>";
-
 
   const cards =
     await loadCards(chapter);
@@ -1228,33 +2113,24 @@ async function startReview(
       direction
     );
 
-
   shuffleArray(
     reviewQuestions
   );
 
-
   currentQuestionIndex = 0;
 
-  showReviewQuestion(
-    direction
-  );
+  showReviewQuestion(direction);
 }
 
 
-function showReviewQuestion(
-  direction
-) {
+function showReviewQuestion(direction) {
 
   if (
     currentQuestionIndex >=
     reviewQuestions.length
   ) {
 
-    showReviewFinished(
-      direction
-    );
-
+    showReviewFinished(direction);
     return;
   }
 
@@ -1268,198 +2144,125 @@ function showReviewQuestion(
   title.textContent =
     currentChapter.name;
 
-  subtitle.textContent = `
-    Question
-    ${currentQuestionIndex + 1}
-    sur
-    ${reviewQuestions.length}
-  `;
+  subtitle.textContent =
+    `Question ${currentQuestionIndex + 1} sur ${reviewQuestions.length}`;
 
 
-  container.innerHTML = "";
+  container.innerHTML = `
+    <div class="review-box">
 
-
-  const box =
-    document.createElement("div");
-
-  box.className =
-    "review-box";
-
-
-  box.innerHTML = `
-
-    <div class="review-question">
-      ${escapeHtml(
-        current.question
-      )}
-    </div>
-
-
-    <button
-      id="show-answer"
-      class="main-button"
-    >
-      Voir la réponse
-    </button>
-
-
-    <div
-      id="answer-area"
-      class="hidden"
-    >
-
-      <div class="review-answer">
-        ${escapeHtml(
-          current.answer
-        )}
+      <div class="review-question">
+        ${escapeHtml(current.question)}
       </div>
 
+      <button
+        id="show-answer"
+        class="main-button"
+      >
+        Voir la réponse
+      </button>
 
-      <div class="review-actions">
+      <div
+        id="answer-area"
+        class="hidden"
+      >
 
-        <button
-          id="wrong-button"
-          class="review-button"
-        >
-          ❌ À revoir
-        </button>
+        <div class="review-answer">
+          ${escapeHtml(current.answer)}
+        </div>
 
-        <button
-          id="correct-button"
-          class="review-button"
-        >
-          ✅ Je savais
-        </button>
+        <div class="review-actions">
+
+          <button
+            id="wrong-button"
+            class="review-button"
+          >
+            ❌ À revoir
+          </button>
+
+          <button
+            id="correct-button"
+            class="review-button"
+          >
+            ✅ Je savais
+          </button>
+
+        </div>
 
       </div>
 
+      <button
+        id="quit-review"
+        class="secondary-button review-back-button"
+      >
+        ← Quitter
+      </button>
+
     </div>
-
-
-    <button
-      id="quit-review"
-      class="secondary-button review-back-button"
-    >
-      ← Quitter la révision
-    </button>
   `;
-
-
-  container.appendChild(box);
 
 
   document
-    .getElementById(
-      "show-answer"
-    )
+    .getElementById("show-answer")
     .addEventListener(
       "click",
       () => {
 
         document
-          .getElementById(
-            "answer-area"
-          )
-          .classList.remove(
-            "hidden"
-          );
+          .getElementById("answer-area")
+          .classList.remove("hidden");
 
         document
-          .getElementById(
-            "show-answer"
-          )
-          .classList.add(
-            "hidden"
-          );
+          .getElementById("show-answer")
+          .classList.add("hidden");
       }
     );
 
 
   document
-    .getElementById(
-      "correct-button"
-    )
+    .getElementById("correct-button")
     .addEventListener(
       "click",
       () => {
 
         currentQuestionIndex++;
-
-        showReviewQuestion(
-          direction
-        );
+        showReviewQuestion(direction);
       }
     );
 
 
   document
-    .getElementById(
-      "wrong-button"
-    )
+    .getElementById("wrong-button")
     .addEventListener(
       "click",
       () => {
-
-        const missed =
-          reviewQuestions[
-            currentQuestionIndex
-          ];
 
         reviewQuestions.push(
-          missed
+          reviewQuestions[
+            currentQuestionIndex
+          ]
         );
 
         currentQuestionIndex++;
-
-        showReviewQuestion(
-          direction
-        );
+        showReviewQuestion(direction);
       }
     );
 
 
   document
-    .getElementById(
-      "quit-review"
-    )
+    .getElementById("quit-review")
     .addEventListener(
       "click",
-      () => {
-
-        if (
-          currentChapter
-            .direction_mode ===
-          "bidirectional"
-        ) {
-
-          showDirectionChoice(
-            "review"
-          );
-
-        } else {
-
-          showModes(
-            currentChapter
-          );
-        }
-      }
+      () => showModes(currentChapter)
     );
 }
 
 
 // ============================================================
-// FIN RÉVISION
+// FIN REVISION
 // ============================================================
 
-function showReviewFinished(
-  direction = "forward"
-) {
-
-  title.textContent =
-    currentChapter.name;
-
-  subtitle.textContent =
-    "Révision terminée";
+function showReviewFinished(direction) {
 
   container.innerHTML = `
     <div class="review-box">
@@ -1472,10 +2275,6 @@ function showReviewFinished(
         Bravo !
       </div>
 
-      <div class="mode-description">
-        Tu as terminé cette révision.
-      </div>
-
       <button
         id="restart-review"
         class="main-button"
@@ -1484,10 +2283,10 @@ function showReviewFinished(
       </button>
 
       <button
-        id="back-modes"
+        id="back-review"
         class="secondary-button"
       >
-        Retour au chapitre
+        Retour
       </button>
 
     </div>
@@ -1500,55 +2299,28 @@ function showReviewFinished(
     )
     .addEventListener(
       "click",
-      () => {
-
-        if (
-          currentChapter
-            .content_type ===
-          "flags"
-        ) {
-
-          startFlagReview(
-            currentChapter
-          );
-
-        } else if (
-          currentChapter
-            .content_type ===
-          "map"
-        ) {
-
-          startMapReview(
-            currentChapter
-          );
-
-        } else {
-
-          startReview(
-            currentChapter,
-            direction
-          );
-        }
-      }
+      () =>
+        startReview(
+          currentChapter,
+          direction
+        )
     );
 
 
   document
     .getElementById(
-      "back-modes"
+      "back-review"
     )
     .addEventListener(
       "click",
       () =>
-        showModes(
-          currentChapter
-        )
+        showModes(currentChapter)
     );
 }
 
 
 // ============================================================
-// TEST TEXTE OU QCM
+// TEST GENERIQUE
 // ============================================================
 
 async function startTest(
@@ -1556,27 +2328,15 @@ async function startTest(
   direction
 ) {
 
-  if (
-    chapter.test_mode === "qcm"
-  ) {
+  if (chapter.test_mode === "qcm") {
 
-    startQcmTest(
-      chapter
-    );
-
+    startQcmTest(chapter);
     return;
   }
 
 
-  title.textContent =
-    chapter.name;
-
-  subtitle.textContent =
-    "Test écrit";
-
   container.innerHTML =
     "<p>Chargement...</p>";
-
 
   const cards =
     await loadCards(chapter);
@@ -1590,36 +2350,23 @@ async function startTest(
       direction
     );
 
-
-  shuffleArray(
-    testQuestions
-  );
-
+  shuffleArray(testQuestions);
 
   testQuestions =
-    testQuestions.slice(
-      0,
-      20
-    );
-
+    testQuestions.slice(0, 20);
 
   currentTestIndex = 0;
   testScore = 0;
 
-
-  showWrittenTestQuestion(
-    direction
-  );
+  showWrittenTestQuestion(direction);
 }
 
 
 // ============================================================
-// TEST ÉCRIT
+// TEST ECRIT GENERIQUE
 // ============================================================
 
-function showWrittenTestQuestion(
-  direction
-) {
+function showWrittenTestQuestion(direction) {
 
   if (
     currentTestIndex >=
@@ -1627,7 +2374,6 @@ function showWrittenTestQuestion(
   ) {
 
     showTestFinished();
-
     return;
   }
 
@@ -1640,15 +2386,7 @@ function showWrittenTestQuestion(
 
   const progress =
     ((currentTestIndex + 1) /
-      testQuestions.length) *
-    100;
-
-
-  title.textContent =
-    currentChapter.name;
-
-  subtitle.textContent =
-    "Test écrit";
+      testQuestions.length) * 100;
 
 
   container.innerHTML = `
@@ -1657,11 +2395,9 @@ function showWrittenTestQuestion(
       <div class="qcm-topbar">
 
         <div class="qcm-counter">
-          Question
-          ${currentTestIndex + 1}
+          Question ${currentTestIndex + 1}
           <span>
-            sur
-            ${testQuestions.length}
+            sur ${testQuestions.length}
           </span>
         </div>
 
@@ -1676,18 +2412,14 @@ function showWrittenTestQuestion(
 
         <div
           class="qcm-progress-bar"
-          style="
-            width:${progress}%
-          "
+          style="width:${progress}%"
         ></div>
 
       </div>
 
 
       <div class="review-question">
-        ${escapeHtml(
-          current.question
-        )}
+        ${escapeHtml(current.question)}
       </div>
 
 
@@ -1695,7 +2427,6 @@ function showWrittenTestQuestion(
         id="written-answer"
         type="text"
         autocomplete="off"
-        autocapitalize="none"
         spellcheck="false"
         placeholder="Écris ta réponse"
         style="
@@ -1738,10 +2469,10 @@ function showWrittenTestQuestion(
 
 
       <button
-        id="quit-test"
+        id="quit-written"
         class="secondary-button"
       >
-        ← Quitter le test
+        ← Quitter
       </button>
 
     </div>
@@ -1756,38 +2487,6 @@ function showWrittenTestQuestion(
   input.focus();
 
 
-  input.addEventListener(
-    "keydown",
-    event => {
-
-      if (
-        event.key === "Enter"
-      ) {
-
-        if (
-          !document
-            .getElementById(
-              "validate-written"
-            )
-            .classList
-            .contains("hidden")
-        ) {
-
-          validateWrittenAnswer();
-
-        } else {
-
-          currentTestIndex++;
-
-          showWrittenTestQuestion(
-            direction
-          );
-        }
-      }
-    }
-  );
-
-
   document
     .getElementById(
       "validate-written"
@@ -1796,6 +2495,33 @@ function showWrittenTestQuestion(
       "click",
       validateWrittenAnswer
     );
+
+
+  input.addEventListener(
+    "keydown",
+    event => {
+
+      if (event.key !== "Enter")
+        return;
+
+      if (
+        !document
+          .getElementById(
+            "validate-written"
+          )
+          .classList
+          .contains("hidden")
+      ) {
+
+        validateWrittenAnswer();
+
+      } else {
+
+        currentTestIndex++;
+        showWrittenTestQuestion(direction);
+      }
+    }
+  );
 
 
   document
@@ -1807,46 +2533,22 @@ function showWrittenTestQuestion(
       () => {
 
         currentTestIndex++;
-
-        showWrittenTestQuestion(
-          direction
-        );
+        showWrittenTestQuestion(direction);
       }
     );
 
 
   document
     .getElementById(
-      "quit-test"
+      "quit-written"
     )
     .addEventListener(
       "click",
-      () => {
-
-        if (
-          currentChapter
-            .direction_mode ===
-          "bidirectional"
-        ) {
-
-          showDirectionChoice(
-            "test"
-          );
-
-        } else {
-
-          showModes(
-            currentChapter
-          );
-        }
-      }
+      () =>
+        showModes(currentChapter)
     );
 }
 
-
-// ============================================================
-// VALIDATION TEST ÉCRIT
-// ============================================================
 
 function validateWrittenAnswer() {
 
@@ -1855,12 +2557,10 @@ function validateWrittenAnswer() {
       currentTestIndex
     ];
 
-
   const input =
     document.getElementById(
       "written-answer"
     );
-
 
   const feedback =
     document.getElementById(
@@ -1868,45 +2568,35 @@ function validateWrittenAnswer() {
     );
 
 
-  const validateButton =
-    document.getElementById(
-      "validate-written"
-    );
-
-
-  const nextButton =
-    document.getElementById(
-      "next-written"
-    );
-
-
-  const userAnswer =
-    input.value.trim();
-
-
-  if (!userAnswer) {
-    return;
-  }
-
-
   const correct =
     isAcceptedWrittenAnswer(
-      userAnswer,
+      input.value,
       current.answer
     );
 
 
   input.disabled = true;
 
-  validateButton.classList.add(
-    "hidden"
-  );
+
+  document
+    .getElementById(
+      "validate-written"
+    )
+    .classList.add(
+      "hidden"
+    );
+
+
+  document
+    .getElementById(
+      "next-written"
+    )
+    .classList.remove(
+      "hidden"
+    );
+
 
   feedback.classList.remove(
-    "hidden"
-  );
-
-  nextButton.classList.remove(
     "hidden"
   );
 
@@ -1915,9 +2605,8 @@ function validateWrittenAnswer() {
 
     testScore++;
 
-    feedback.innerHTML = `
-      ✅ Correct !
-    `;
+    feedback.innerHTML =
+      "✅ Correct !";
 
     feedback.style.color =
       "#15803d";
@@ -1925,12 +2614,9 @@ function validateWrittenAnswer() {
   } else {
 
     feedback.innerHTML = `
-      ❌ Réponse attendue :
-      <br>
+      ❌ Réponse :
       <strong>
-        ${escapeHtml(
-          current.answer
-        )}
+        ${escapeHtml(current.answer)}
       </strong>
     `;
 
@@ -1941,98 +2627,10 @@ function validateWrittenAnswer() {
 
 
 // ============================================================
-// TOLÉRANCE DES RÉPONSES ÉCRITES
-// ============================================================
-
-function isAcceptedWrittenAnswer(
-  userAnswer,
-  expectedAnswer
-) {
-
-  const normalizedUser =
-    normalizeAnswer(
-      userAnswer
-    );
-
-
-  const normalizedExpected =
-    normalizeAnswer(
-      expectedAnswer
-    );
-
-
-  if (
-    normalizedUser ===
-    normalizedExpected
-  ) {
-    return true;
-  }
-
-
-  // Permet plusieurs traductions :
-  // ex. "duvet, couette"
-  // ou "Va-t-en ! / Allez-vous en !"
-
-  const alternatives =
-    String(expectedAnswer)
-      .split(/\s*\/\s*|,\s*/)
-      .map(
-        alternative =>
-          normalizeAnswer(
-            alternative
-          )
-      )
-      .filter(Boolean);
-
-
-  return alternatives.includes(
-    normalizedUser
-  );
-}
-
-
-function normalizeAnswer(value) {
-
-  return String(value)
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(
-      /[\u0300-\u036f]/g,
-      ""
-    )
-    .replace(
-      /[’']/g,
-      ""
-    )
-    .replace(
-      /[.!?,;:()[\]{}]/g,
-      " "
-    )
-    .replace(
-      /\s+/g,
-      " "
-    )
-    .trim();
-}
-
-
-// ============================================================
 // QCM
 // ============================================================
 
-async function startQcmTest(
-  chapter
-) {
-
-  title.textContent =
-    chapter.name;
-
-  subtitle.textContent =
-    "Test QCM";
-
-  container.innerHTML =
-    "<p>Chargement...</p>";
-
+async function startQcmTest(chapter) {
 
   const cards =
     await loadCards(chapter);
@@ -2048,6 +2646,7 @@ async function startQcmTest(
         card.wrong_answer_3
       )
       .map(card => ({
+
         question:
           card.question,
 
@@ -2067,25 +2666,15 @@ async function startQcmTest(
     testQuestions
   );
 
-
   testQuestions =
-    testQuestions.slice(
-      0,
-      20
-    );
-
+    testQuestions.slice(0, 20);
 
   currentTestIndex = 0;
   testScore = 0;
 
-
   showQcmQuestion();
 }
 
-
-// ============================================================
-// AFFICHAGE QCM
-// ============================================================
 
 function showQcmQuestion() {
 
@@ -2095,7 +2684,6 @@ function showQcmQuestion() {
   ) {
 
     showTestFinished();
-
     return;
   }
 
@@ -2109,33 +2697,18 @@ function showQcmQuestion() {
   const options =
     [...current.options];
 
-
   shuffleArray(options);
 
 
-  const letters =
-    ["A", "B", "C", "D"];
-
-
-  const progress =
-    ((currentTestIndex + 1) /
-      testQuestions.length) *
-    100;
-
-
   container.innerHTML = `
-
     <div class="review-box qcm-card">
 
       <div class="qcm-topbar">
 
         <div class="qcm-counter">
-          Question
-          ${currentTestIndex + 1}
-
+          Question ${currentTestIndex + 1}
           <span>
-            sur
-            ${testQuestions.length}
+            sur ${testQuestions.length}
           </span>
         </div>
 
@@ -2145,72 +2718,39 @@ function showQcmQuestion() {
 
       </div>
 
-
-      <div class="qcm-progress">
-
-        <div
-          class="qcm-progress-bar"
-          style="
-            width:${progress}%
-          "
-        ></div>
-
-      </div>
-
-
       <div class="review-question">
-        ${escapeHtml(
-          current.question
-        )}
+        ${escapeHtml(current.question)}
       </div>
 
+      <div class="qcm-grid">
 
-      <div
-        id="qcm-options"
-        class="qcm-grid"
-      >
+        ${options.map(
+          (option, i) => `
+            <button
+              class="qcm-choice"
+              data-answer="${encodeURIComponent(option)}"
+            >
+              <span class="qcm-letter">
+                ${["A","B","C","D"][i]}
+              </span>
 
-        ${options
-          .map(
-            (option, index) => `
-
-              <button
-                class="qcm-choice"
-                data-answer="${encodeURIComponent(
-                  option
-                )}"
-              >
-
-                <span
-                  class="qcm-letter"
-                >
-                  ${letters[index]}
-                </span>
-
-                <span>
-                  ${escapeHtml(
-                    option
-                  )}
-                </span>
-
-              </button>
-            `
-          )
-          .join("")}
+              <span>
+                ${escapeHtml(option)}
+              </span>
+            </button>
+          `
+        ).join("")}
 
       </div>
-
 
       <div
         id="qcm-feedback"
         class="hidden"
         style="
-          margin-top:22px;
-          font-size:18px;
+          margin-top:20px;
           font-weight:700;
         "
       ></div>
-
 
       <button
         id="qcm-next"
@@ -2220,12 +2760,11 @@ function showQcmQuestion() {
         Question suivante
       </button>
 
-
       <button
         id="quit-qcm"
         class="secondary-button"
       >
-        ← Quitter le test
+        ← Quitter
       </button>
 
     </div>
@@ -2233,56 +2772,40 @@ function showQcmQuestion() {
 
 
   document
-    .querySelectorAll(
-      ".qcm-choice"
-    )
+    .querySelectorAll(".qcm-choice")
     .forEach(button => {
 
       button.addEventListener(
         "click",
-        () => {
-
+        () =>
           answerQcm(
             button,
             current.answer
-          );
-        }
+          )
       );
     });
 
 
   document
-    .getElementById(
-      "qcm-next"
-    )
+    .getElementById("qcm-next")
     .addEventListener(
       "click",
       () => {
 
         currentTestIndex++;
-
         showQcmQuestion();
       }
     );
 
 
   document
-    .getElementById(
-      "quit-qcm"
-    )
+    .getElementById("quit-qcm")
     .addEventListener(
       "click",
-      () =>
-        showModes(
-          currentChapter
-        )
+      () => showModes(currentChapter)
     );
 }
 
-
-// ============================================================
-// RÉPONSE QCM
-// ============================================================
 
 function answerQcm(
   selectedButton,
@@ -2299,17 +2822,12 @@ function answerQcm(
 
     button.disabled = true;
 
-
     const answer =
       decodeURIComponent(
         button.dataset.answer
       );
 
-
-    if (
-      answer === correctAnswer
-    ) {
-
+    if (answer === correctAnswer) {
       button.classList.add(
         "qcm-correct"
       );
@@ -2317,7 +2835,7 @@ function answerQcm(
   });
 
 
-  const selectedAnswer =
+  const selected =
     decodeURIComponent(
       selectedButton.dataset.answer
     );
@@ -2334,10 +2852,7 @@ function answerQcm(
   );
 
 
-  if (
-    selectedAnswer ===
-    correctAnswer
-  ) {
+  if (selected === correctAnswer) {
 
     testScore++;
 
@@ -2349,18 +2864,14 @@ function answerQcm(
 
   } else {
 
-    selectedButton
-      .classList
-      .add(
-        "qcm-wrong"
-      );
+    selectedButton.classList.add(
+      "qcm-wrong"
+    );
 
     feedback.innerHTML = `
       ❌ Réponse :
       <strong>
-        ${escapeHtml(
-          correctAnswer
-        )}
+        ${escapeHtml(correctAnswer)}
       </strong>
     `;
 
@@ -2370,32 +2881,16 @@ function answerQcm(
 
 
   document
-    .getElementById(
-      "qcm-next"
-    )
-    .classList.remove(
-      "hidden"
-    );
+    .getElementById("qcm-next")
+    .classList.remove("hidden");
 }
 
 
 // ============================================================
-// DRAPEAUX - RÉVISION
+// DRAPEAUX
 // ============================================================
 
-async function startFlagReview(
-  chapter
-) {
-
-  title.textContent =
-    chapter.name;
-
-  subtitle.textContent =
-    "Drapeau → pays";
-
-  container.innerHTML =
-    "<p>Chargement...</p>";
-
+async function startFlagReview(chapter) {
 
   const cards =
     await loadCards(chapter);
@@ -2405,13 +2900,8 @@ async function startFlagReview(
 
   reviewQuestions =
     cards
-      .filter(card =>
-        card.image_url
-      )
+      .filter(card => card.image_url)
       .map(card => ({
-        question:
-          card.question,
-
         answer:
           card.answer,
 
@@ -2420,10 +2910,7 @@ async function startFlagReview(
       }));
 
 
-  shuffleArray(
-    reviewQuestions
-  );
-
+  shuffleArray(reviewQuestions);
 
   currentQuestionIndex = 0;
 
@@ -2438,8 +2925,7 @@ function showFlagReviewQuestion() {
     reviewQuestions.length
   ) {
 
-    showReviewFinished();
-
+    showReviewFinished("forward");
     return;
   }
 
@@ -2450,54 +2936,37 @@ function showFlagReviewQuestion() {
     ];
 
 
-  subtitle.textContent = `
-    Question
-    ${currentQuestionIndex + 1}
-    sur
-    ${reviewQuestions.length}
-  `;
-
-
   container.innerHTML = `
-
     <div class="review-box">
 
       <div class="review-question">
-        Quel pays correspond
-        à ce drapeau ?
+        Quel pays correspond à ce drapeau ?
       </div>
-
 
       <div class="flag-display">
 
         <img
           src="${current.image_url}"
           class="flag-main-image"
-          alt="Drapeau"
         >
 
       </div>
 
-
       <button
-        id="show-flag-answer"
+        id="show-flag"
         class="main-button"
       >
         Voir la réponse
       </button>
 
-
       <div
-        id="flag-answer-area"
+        id="flag-answer"
         class="hidden"
       >
 
         <div class="review-answer">
-          ${escapeHtml(
-            current.answer
-          )}
+          ${escapeHtml(current.answer)}
         </div>
-
 
         <div class="review-actions">
 
@@ -2519,113 +2988,55 @@ function showFlagReviewQuestion() {
 
       </div>
 
-
-      <button
-        id="quit-flag-review"
-        class="secondary-button review-back-button"
-      >
-        ← Quitter
-      </button>
-
     </div>
   `;
 
 
   document
-    .getElementById(
-      "show-flag-answer"
-    )
+    .getElementById("show-flag")
     .addEventListener(
       "click",
       () => {
 
         document
-          .getElementById(
-            "flag-answer-area"
-          )
-          .classList.remove(
-            "hidden"
-          );
+          .getElementById("flag-answer")
+          .classList.remove("hidden");
 
         document
-          .getElementById(
-            "show-flag-answer"
-          )
-          .classList.add(
-            "hidden"
-          );
+          .getElementById("show-flag")
+          .classList.add("hidden");
       }
     );
 
 
   document
-    .getElementById(
-      "flag-correct"
-    )
+    .getElementById("flag-correct")
     .addEventListener(
       "click",
       () => {
 
         currentQuestionIndex++;
-
         showFlagReviewQuestion();
       }
     );
 
 
   document
-    .getElementById(
-      "flag-wrong"
-    )
+    .getElementById("flag-wrong")
     .addEventListener(
       "click",
       () => {
 
-        reviewQuestions.push(
-          reviewQuestions[
-            currentQuestionIndex
-          ]
-        );
+        reviewQuestions.push(current);
 
         currentQuestionIndex++;
-
         showFlagReviewQuestion();
       }
-    );
-
-
-  document
-    .getElementById(
-      "quit-flag-review"
-    )
-    .addEventListener(
-      "click",
-      () =>
-        showModes(
-          currentChapter
-        )
     );
 }
 
 
-// ============================================================
-// DRAPEAUX - TEST
-// Pays -> 4 drapeaux
-// ============================================================
-
-async function startFlagTest(
-  chapter
-) {
-
-  title.textContent =
-    chapter.name;
-
-  subtitle.textContent =
-    "Test drapeaux";
-
-  container.innerHTML =
-    "<p>Chargement...</p>";
-
+async function startFlagTest(chapter) {
 
   const cards =
     await loadCards(chapter);
@@ -2633,34 +3044,22 @@ async function startFlagTest(
   if (!cards) return;
 
 
-  const validCards =
+  currentMapCards =
     cards.filter(card =>
       card.image_url
     );
 
 
   testQuestions =
-    [...validCards];
+    [...currentMapCards];
 
-
-  shuffleArray(
-    testQuestions
-  );
-
+  shuffleArray(testQuestions);
 
   testQuestions =
-    testQuestions.slice(
-      0,
-      20
-    );
-
-
-  currentMapCards =
-    validCards;
+    testQuestions.slice(0, 20);
 
   currentTestIndex = 0;
   testScore = 0;
-
 
   showFlagTestQuestion();
 }
@@ -2674,7 +3073,6 @@ function showFlagTestQuestion() {
   ) {
 
     showTestFinished();
-
     return;
   }
 
@@ -2685,131 +3083,52 @@ function showFlagTestQuestion() {
     ];
 
 
-  const wrongCards =
-    currentMapCards
-      .filter(card =>
-        card.id !== correct.id
-      );
+  const wrong =
+    currentMapCards.filter(
+      card => card.id !== correct.id
+    );
 
-
-  shuffleArray(
-    wrongCards
-  );
+  shuffleArray(wrong);
 
 
   const options = [
     correct,
-    ...wrongCards.slice(
-      0,
-      3
-    )
+    ...wrong.slice(0, 3)
   ];
-
 
   shuffleArray(options);
 
 
-  const progress =
-    ((currentTestIndex + 1) /
-      testQuestions.length) *
-    100;
-
-
   container.innerHTML = `
-
     <div class="review-box">
-
-      <div class="qcm-topbar">
-
-        <div class="qcm-counter">
-          Question
-          ${currentTestIndex + 1}
-
-          <span>
-            sur
-            ${testQuestions.length}
-          </span>
-        </div>
-
-        <div class="qcm-score">
-          ⭐ ${testScore}
-        </div>
-
-      </div>
-
-
-      <div class="qcm-progress">
-
-        <div
-          class="qcm-progress-bar"
-          style="
-            width:${progress}%
-          "
-        ></div>
-
-      </div>
-
 
       <div class="review-question">
         Quel est le drapeau de :
         <br>
-        <strong>
-          ${escapeHtml(
-            correct.answer
-          )}
-        </strong>
+        ${escapeHtml(correct.answer)}
       </div>
 
+      <div class="flag-qcm-grid">
 
-      <div
-        class="flag-qcm-grid"
-        id="flag-options"
-      >
-
-        ${options
-          .map(card => `
-
-            <button
-              class="flag-choice-button"
-              data-id="${card.id}"
+        ${options.map(card => `
+          <button
+            class="flag-choice-button"
+            data-id="${card.id}"
+          >
+            <img
+              src="${card.image_url}"
+              alt="Drapeau"
             >
-
-              <img
-                src="${card.image_url}"
-                alt="Drapeau"
-              >
-
-            </button>
-          `)
-          .join("")}
+          </button>
+        `).join("")}
 
       </div>
-
-
-      <div
-        id="flag-feedback"
-        class="hidden"
-        style="
-          margin-top:20px;
-          font-weight:700;
-        "
-      ></div>
-
 
       <button
         id="flag-next"
         class="main-button hidden"
-        style="margin-top:20px;"
       >
         Question suivante
-      </button>
-
-
-      <button
-        id="quit-flag-test"
-        class="secondary-button"
-      >
-        ← Quitter
       </button>
 
     </div>
@@ -2826,75 +3145,42 @@ function showFlagTestQuestion() {
         "click",
         () => {
 
-          const selectedId =
-            Number(
-              button.dataset.id
-            );
+          const selected =
+            Number(button.dataset.id);
 
 
-          const allButtons =
-            document.querySelectorAll(
+          document
+            .querySelectorAll(
               ".flag-choice-button"
-            );
+            )
+            .forEach(b => {
 
-
-          allButtons.forEach(
-            optionButton => {
-
-              optionButton.disabled =
-                true;
-
+              b.disabled = true;
 
               if (
-                Number(
-                  optionButton.dataset.id
-                ) ===
+                Number(b.dataset.id) ===
                 Number(correct.id)
               ) {
 
-                optionButton.classList.add(
+                b.classList.add(
                   "qcm-correct"
                 );
               }
-            }
-          );
-
-
-          const feedback =
-            document.getElementById(
-              "flag-feedback"
-            );
-
-
-          feedback.classList.remove(
-            "hidden"
-          );
+            });
 
 
           if (
-            selectedId ===
+            selected ===
             Number(correct.id)
           ) {
 
             testScore++;
-
-            feedback.textContent =
-              "✅ Correct !";
-
-            feedback.style.color =
-              "#15803d";
 
           } else {
 
             button.classList.add(
               "qcm-wrong"
             );
-
-            feedback.textContent =
-              "❌ Mauvais drapeau";
-
-            feedback.style.color =
-              "#b91c1c";
           }
 
 
@@ -2911,51 +3197,23 @@ function showFlagTestQuestion() {
 
 
   document
-    .getElementById(
-      "flag-next"
-    )
+    .getElementById("flag-next")
     .addEventListener(
       "click",
       () => {
 
         currentTestIndex++;
-
         showFlagTestQuestion();
       }
-    );
-
-
-  document
-    .getElementById(
-      "quit-flag-test"
-    )
-    .addEventListener(
-      "click",
-      () =>
-        showModes(
-          currentChapter
-        )
     );
 }
 
 
 // ============================================================
-// CARTE - RÉVISION
+// CARTE EUROPE
 // ============================================================
 
-async function startMapReview(
-  chapter
-) {
-
-  title.textContent =
-    chapter.name;
-
-  subtitle.textContent =
-    "Révision carte";
-
-  container.innerHTML =
-    "<p>Chargement...</p>";
-
+async function startMapReview(chapter) {
 
   const cards =
     await loadCards(chapter);
@@ -2972,11 +3230,7 @@ async function startMapReview(
   reviewQuestions =
     [...currentMapCards];
 
-
-  shuffleArray(
-    reviewQuestions
-  );
-
+  shuffleArray(reviewQuestions);
 
   currentQuestionIndex = 0;
 
@@ -2991,8 +3245,7 @@ async function showMapReviewQuestion() {
     reviewQuestions.length
   ) {
 
-    showReviewFinished();
-
+    showReviewFinished("forward");
     return;
   }
 
@@ -3001,14 +3254,6 @@ async function showMapReviewQuestion() {
     reviewQuestions[
       currentQuestionIndex
     ];
-
-
-  subtitle.textContent = `
-    Question
-    ${currentQuestionIndex + 1}
-    sur
-    ${reviewQuestions.length}
-  `;
 
 
   renderMapCard(
@@ -3024,23 +3269,7 @@ async function showMapReviewQuestion() {
 }
 
 
-// ============================================================
-// CARTE - TEST
-// ============================================================
-
-async function startMapTest(
-  chapter
-) {
-
-  title.textContent =
-    chapter.name;
-
-  subtitle.textContent =
-    "Test carte";
-
-  container.innerHTML =
-    "<p>Chargement...</p>";
-
+async function startMapTest(chapter) {
 
   const cards =
     await loadCards(chapter);
@@ -3057,22 +3286,13 @@ async function startMapTest(
   testQuestions =
     [...currentMapCards];
 
-
-  shuffleArray(
-    testQuestions
-  );
-
+  shuffleArray(testQuestions);
 
   testQuestions =
-    testQuestions.slice(
-      0,
-      20
-    );
-
+    testQuestions.slice(0, 20);
 
   currentTestIndex = 0;
   testScore = 0;
-
 
   showMapTestQuestion();
 }
@@ -3086,7 +3306,6 @@ async function showMapTestQuestion() {
   ) {
 
     showTestFinished();
-
     return;
   }
 
@@ -3110,54 +3329,13 @@ async function showMapTestQuestion() {
 }
 
 
-// ============================================================
-// CARTE - INTERFACE
-// ============================================================
-
 function renderMapCard(
   current,
   mode
 ) {
 
-  const index =
-    mode === "review"
-      ? currentQuestionIndex
-      : currentTestIndex;
-
-
-  const total =
-    mode === "review"
-      ? reviewQuestions.length
-      : testQuestions.length;
-
-
   container.innerHTML = `
-
     <div class="map-card">
-
-      ${
-        mode === "test"
-          ? `
-            <div class="qcm-topbar">
-
-              <div class="qcm-counter">
-                Question
-                ${index + 1}
-
-                <span>
-                  sur ${total}
-                </span>
-              </div>
-
-              <div class="qcm-score">
-                ⭐ ${testScore}
-              </div>
-
-            </div>
-          `
-          : ""
-      }
-
 
       <div class="map-instruction">
         ${
@@ -3167,13 +3345,9 @@ function renderMapCard(
         }
       </div>
 
-
       <div class="map-country-name">
-        ${escapeHtml(
-          current.answer
-        )}
+        ${escapeHtml(current.answer)}
       </div>
-
 
       <div class="map-controls">
 
@@ -3186,10 +3360,7 @@ function renderMapCard(
 
         <button
           id="map-reset"
-          class="
-            map-control-button
-            map-reset-button
-          "
+          class="map-control-button map-reset-button"
         >
           Recentrer
         </button>
@@ -3203,14 +3374,12 @@ function renderMapCard(
 
       </div>
 
-
       <div
         id="map-container"
         class="europe-map-container"
       >
-        Chargement de la carte...
+        Chargement...
       </div>
-
 
       <div
         id="map-feedback"
@@ -3219,15 +3388,12 @@ function renderMapCard(
           margin-top:18px;
           text-align:center;
           font-weight:700;
-          font-size:18px;
         "
       ></div>
-
 
       <button
         id="quit-map"
         class="secondary-button"
-        style="margin-top:20px;"
       >
         ← Quitter
       </button>
@@ -3237,22 +3403,13 @@ function renderMapCard(
 
 
   document
-    .getElementById(
-      "quit-map"
-    )
+    .getElementById("quit-map")
     .addEventListener(
       "click",
-      () =>
-        showModes(
-          currentChapter
-        )
+      () => showModes(currentChapter)
     );
 }
 
-
-// ============================================================
-// CHARGEMENT SVG
-// ============================================================
 
 async function loadInteractiveMap(
   correctCode,
@@ -3268,43 +3425,20 @@ async function loadInteractiveMap(
   try {
 
     const response =
-      await fetch(
-        "europe-map.svg"
-      );
-
-
-    if (!response.ok) {
-
-      throw new Error(
-        "europe-map.svg introuvable"
-      );
-    }
-
+      await fetch("europe-map.svg");
 
     const svgText =
       await response.text();
 
-
     mapContainer.innerHTML =
       svgText;
-
 
     const svg =
       mapContainer.querySelector(
         "svg"
       );
 
-
-    if (!svg) {
-
-      throw new Error(
-        "SVG invalide"
-      );
-    }
-
-
     prepareEuropeMap(svg);
-
     setupMapNavigation(svg);
 
     setupMapClicks(
@@ -3313,95 +3447,69 @@ async function loadInteractiveMap(
       mode
     );
 
-
   } catch (error) {
 
     console.error(error);
 
-    mapContainer.innerHTML = `
-      <p>
-        Impossible de charger la carte.
-      </p>
-    `;
+    mapContainer.innerHTML =
+      "Impossible de charger la carte.";
   }
 }
 
 
-// ============================================================
-// PRÉPARER LA CARTE
-// ============================================================
-
 function prepareEuropeMap(svg) {
 
-  svg.removeAttribute(
-    "width"
-  );
-
-  svg.removeAttribute(
-    "height"
-  );
-
+  svg.removeAttribute("width");
+  svg.removeAttribute("height");
 
   svg.classList.add(
     "interactive-europe-map"
   );
 
 
-  svg.setAttribute(
-    "preserveAspectRatio",
-    "xMidYMid meet"
-  );
-
-
   const allowedCodes =
-    currentMapCards
-      .map(card =>
-        String(
-          card.map_code
-        ).toUpperCase()
+    currentMapCards.map(
+      card =>
+        String(card.map_code)
+          .toUpperCase()
+    );
+
+
+  svg.querySelectorAll(
+    "g[id]"
+  ).forEach(group => {
+
+    const code =
+      String(group.id)
+        .toUpperCase();
+
+
+    group.classList.remove(
+      "map-country",
+      "map-country-disabled",
+      "map-country-correct",
+      "map-country-wrong"
+    );
+
+
+    if (
+      allowedCodes.includes(code)
+    ) {
+
+      group.classList.add(
+        "map-country"
       );
 
+      group.dataset.countryCode =
+        code;
 
-  svg
-    .querySelectorAll(
-      "g[id]"
-    )
-    .forEach(group => {
+    } else {
 
-      const code =
-        String(
-          group.id
-        ).toUpperCase();
-
-
-      group.classList.remove(
-        "map-country",
-        "map-country-disabled",
-        "map-country-correct",
-        "map-country-wrong"
+      group.classList.add(
+        "map-country-disabled"
       );
-
-
-      if (
-        allowedCodes.includes(
-          code
-        )
-      ) {
-
-        group.classList.add(
-          "map-country"
-        );
-
-        group.dataset.countryCode =
-          code;
-
-      } else {
-
-        group.classList.add(
-          "map-country-disabled"
-        );
-      }
-    });
+    }
+  });
 
 
   createMapHitAreas(
@@ -3409,26 +3517,17 @@ function prepareEuropeMap(svg) {
     allowedCodes
   );
 
-
-  setInitialEuropeView(
-    svg
-  );
+  setInitialEuropeView(svg);
 }
 
-
-// ============================================================
-// CADRAGE EUROPE
-// ============================================================
 
 function setInitialEuropeView(svg) {
 
   const viewBox = {
-
     x: 430,
     y: 55,
     width: 235,
     height: 205
-
   };
 
 
@@ -3436,40 +3535,27 @@ function setInitialEuropeView(svg) {
     ...viewBox
   };
 
-
   mapCurrentViewBox = {
     ...viewBox
   };
 
-
   applyMapViewBox(svg);
 }
 
-
-// ============================================================
-// PETITS PAYS
-// ============================================================
 
 function createMapHitAreas(
   svg,
   allowedCodes
 ) {
 
-  const namespace =
+  const ns =
     "http://www.w3.org/2000/svg";
-
 
   const overlay =
     document.createElementNS(
-      namespace,
+      ns,
       "g"
     );
-
-
-  overlay.setAttribute(
-    "id",
-    "map-hit-areas"
-  );
 
 
   const smallCodes = [
@@ -3486,12 +3572,8 @@ function createMapHitAreas(
   smallCodes.forEach(code => {
 
     if (
-      !allowedCodes.includes(
-        code
-      )
-    ) {
-      return;
-    }
+      !allowedCodes.includes(code)
+    ) return;
 
 
     const country =
@@ -3499,92 +3581,57 @@ function createMapHitAreas(
         `g[id="${code}"]`
       );
 
-
-    if (!country) {
-      return;
-    }
+    if (!country) return;
 
 
-    try {
-
-      const box =
-        country.getBBox();
+    const box =
+      country.getBBox();
 
 
-      const centerX =
-        box.x +
-        box.width / 2;
-
-
-      const centerY =
-        box.y +
-        box.height / 2;
-
-
-      const size = 8;
-
-
-      const hit =
-        document.createElementNS(
-          namespace,
-          "rect"
-        );
-
-
-      hit.setAttribute(
-        "x",
-        centerX - size / 2
-      );
-
-      hit.setAttribute(
-        "y",
-        centerY - size / 2
-      );
-
-      hit.setAttribute(
-        "width",
-        size
-      );
-
-      hit.setAttribute(
-        "height",
-        size
-      );
-
-      hit.setAttribute(
-        "class",
-        "map-small-hit"
+    const hit =
+      document.createElementNS(
+        ns,
+        "rect"
       );
 
 
-      hit.dataset.countryCode =
-        code;
+    hit.setAttribute(
+      "x",
+      box.x +
+      box.width / 2 - 4
+    );
 
+    hit.setAttribute(
+      "y",
+      box.y +
+      box.height / 2 - 4
+    );
 
-      overlay.appendChild(
-        hit
-      );
+    hit.setAttribute(
+      "width",
+      8
+    );
 
+    hit.setAttribute(
+      "height",
+      8
+    );
 
-    } catch (error) {
+    hit.setAttribute(
+      "class",
+      "map-small-hit"
+    );
 
-      console.warn(
-        "Impossible d'ajouter la zone :",
-        code
-      );
-    }
+    hit.dataset.countryCode =
+      code;
+
+    overlay.appendChild(hit);
   });
 
 
-  svg.appendChild(
-    overlay
-  );
+  svg.appendChild(overlay);
 }
 
-
-// ============================================================
-// CLICS CARTE
-// ============================================================
 
 function setupMapClicks(
   svg,
@@ -3592,19 +3639,14 @@ function setupMapClicks(
   mode
 ) {
 
-  const normalizedCorrect =
-    String(
-      correctCode
-    ).toUpperCase();
+  const correct =
+    String(correctCode)
+      .toUpperCase();
 
 
-  const clickable =
-    svg.querySelectorAll(
-      ".map-country, .map-small-hit"
-    );
-
-
-  clickable.forEach(element => {
+  svg.querySelectorAll(
+    ".map-country, .map-small-hit"
+  ).forEach(element => {
 
     element.addEventListener(
       "click",
@@ -3613,15 +3655,13 @@ function setupMapClicks(
         if (
           svg.dataset.ignoreMapClick ===
           "true"
-        ) {
-          return;
-        }
+        ) return;
 
 
         event.stopPropagation();
 
 
-        const clickedCode =
+        const clicked =
           String(
             element.dataset.countryCode ||
             element.id
@@ -3630,8 +3670,8 @@ function setupMapClicks(
 
         handleMapAnswer(
           svg,
-          clickedCode,
-          normalizedCorrect,
+          clicked,
+          correct,
           mode
         );
       }
@@ -3640,14 +3680,10 @@ function setupMapClicks(
 }
 
 
-// ============================================================
-// RÉPONSE CARTE
-// ============================================================
-
 function handleMapAnswer(
   svg,
-  clickedCode,
-  correctCode,
+  clicked,
+  correct,
   mode
 ) {
 
@@ -3659,91 +3695,42 @@ function handleMapAnswer(
 
   const clickedCountry =
     svg.querySelector(
-      `g[id="${clickedCode}"]`
+      `g[id="${clicked}"]`
     );
 
 
   const correctCountry =
     svg.querySelector(
-      `g[id="${correctCode}"]`
+      `g[id="${correct}"]`
     );
 
 
-  svg
-    .querySelectorAll(
-      ".map-country, .map-small-hit"
-    )
-    .forEach(element => {
+  if (clicked === correct) {
 
-      element.style.pointerEvents =
-        "none";
-    });
-
-
-  if (
-    clickedCode ===
-    correctCode
-  ) {
-
-    if (clickedCountry) {
-
-      clickedCountry.classList.add(
-        "map-country-correct"
-      );
-    }
-
-
-    feedback.classList.remove(
-      "hidden"
+    clickedCountry?.classList.add(
+      "map-country-correct"
     );
 
     feedback.textContent =
       "✅ Correct !";
 
-    feedback.style.color =
-      "#15803d";
-
-
-    if (
-      mode === "test"
-    ) {
-
+    if (mode === "test")
       testScore++;
-    }
-
 
   } else {
 
-    if (clickedCountry) {
+    clickedCountry?.classList.add(
+      "map-country-wrong"
+    );
 
-      clickedCountry.classList.add(
-        "map-country-wrong"
-      );
-    }
-
-
-    if (correctCountry) {
-
-      correctCountry.classList.add(
-        "map-country-correct"
-      );
-    }
-
-
-    feedback.classList.remove(
-      "hidden"
+    correctCountry?.classList.add(
+      "map-country-correct"
     );
 
     feedback.textContent =
       "❌ Ce n’était pas ce pays.";
 
-    feedback.style.color =
-      "#b91c1c";
-
-
-    if (
-      mode === "review"
-    ) {
+    if (mode === "review") {
 
       reviewQuestions.push(
         reviewQuestions[
@@ -3754,105 +3741,82 @@ function handleMapAnswer(
   }
 
 
+  feedback.classList.remove(
+    "hidden"
+  );
+
+
   setTimeout(
     () => {
 
-      if (
-        mode === "review"
-      ) {
+      if (mode === "review") {
 
         currentQuestionIndex++;
-
         showMapReviewQuestion();
 
       } else {
 
         currentTestIndex++;
-
         showMapTestQuestion();
       }
 
     },
-    1100
+    1000
   );
 }
 
 
 // ============================================================
-// NAVIGATION CARTE
+// ZOOM / PAN CARTE
 // ============================================================
 
 function setupMapNavigation(svg) {
 
   setupMapZoom(svg);
-
   setupMapPan(svg);
-
   setupMouseWheelZoom(svg);
 }
 
 
-// ============================================================
-// BOUTONS ZOOM
-// ============================================================
-
 function setupMapZoom(svg) {
 
-  const zoomIn =
-    document.getElementById(
+  document
+    .getElementById(
       "map-zoom-in"
+    )
+    ?.addEventListener(
+      "click",
+      () => zoomMap(svg, 0.8)
     );
 
 
-  const zoomOut =
-    document.getElementById(
+  document
+    .getElementById(
       "map-zoom-out"
+    )
+    ?.addEventListener(
+      "click",
+      () => zoomMap(svg, 1.25)
     );
 
 
-  const reset =
-    document.getElementById(
+  document
+    .getElementById(
       "map-reset"
+    )
+    ?.addEventListener(
+      "click",
+      () => {
+
+        mapCurrentViewBox = {
+          ...mapOriginalViewBox
+        };
+
+        applyMapViewBox(svg);
+      }
     );
-
-
-  zoomIn?.addEventListener(
-    "click",
-    () =>
-      zoomMap(
-        svg,
-        0.8
-      )
-  );
-
-
-  zoomOut?.addEventListener(
-    "click",
-    () =>
-      zoomMap(
-        svg,
-        1.25
-      )
-  );
-
-
-  reset?.addEventListener(
-    "click",
-    () => {
-
-      mapCurrentViewBox = {
-        ...mapOriginalViewBox
-      };
-
-      applyMapViewBox(svg);
-    }
-  );
 }
 
-
-// ============================================================
-// MOLETTE
-// ============================================================
 
 function setupMouseWheelZoom(svg) {
 
@@ -3862,105 +3826,62 @@ function setupMouseWheelZoom(svg) {
 
       event.preventDefault();
 
-
-      if (
+      zoomMap(
+        svg,
         event.deltaY < 0
-      ) {
-
-        zoomMap(
-          svg,
-          0.9
-        );
-
-      } else {
-
-        zoomMap(
-          svg,
-          1.1
-        );
-      }
+          ? 0.9
+          : 1.1
+      );
 
     },
-    {
-      passive: false
-    }
+    { passive: false }
   );
 }
 
 
-// ============================================================
-// ZOOM CARTE
-// ============================================================
-
-function zoomMap(
-  svg,
-  factor
-) {
-
-  if (!mapCurrentViewBox) {
-    return;
-  }
-
+function zoomMap(svg, factor) {
 
   const centerX =
     mapCurrentViewBox.x +
     mapCurrentViewBox.width / 2;
-
 
   const centerY =
     mapCurrentViewBox.y +
     mapCurrentViewBox.height / 2;
 
 
-  const newWidth =
+  const width =
     mapCurrentViewBox.width *
     factor;
 
-
-  const newHeight =
+  const height =
     mapCurrentViewBox.height *
     factor;
 
 
-  const minWidth = 80;
-  const maxWidth = 360;
-
-
   if (
-    newWidth < minWidth ||
-    newWidth > maxWidth
-  ) {
-    return;
-  }
+    width < 80 ||
+    width > 360
+  ) return;
 
 
   mapCurrentViewBox = {
 
     x:
-      centerX -
-      newWidth / 2,
+      centerX - width / 2,
 
     y:
-      centerY -
-      newHeight / 2,
+      centerY - height / 2,
 
-    width:
-      newWidth,
-
-    height:
-      newHeight
+    width,
+    height
   };
 
 
   clampMapViewBox();
-
   applyMapViewBox(svg);
 }
 
-
-// ============================================================
-// PAN / DRAG
-// ============================================================
 
 function setupMapPan(svg) {
 
@@ -3971,18 +3892,12 @@ function setupMapPan(svg) {
   let startY = 0;
 
   let startViewBox = null;
-
   let activePointerId = null;
 
 
   svg.addEventListener(
     "pointerdown",
     event => {
-
-      if (!mapCurrentViewBox) {
-        return;
-      }
-
 
       pointerDown = true;
       dragging = false;
@@ -4010,32 +3925,22 @@ function setupMapPan(svg) {
       if (
         !pointerDown ||
         event.pointerId !==
-          activePointerId ||
-        !startViewBox
-      ) {
-        return;
-      }
+        activePointerId
+      ) return;
 
 
-      const deltaPixelsX =
-        event.clientX -
-        startX;
+      const dx =
+        event.clientX - startX;
 
-
-      const deltaPixelsY =
-        event.clientY -
-        startY;
+      const dy =
+        event.clientY - startY;
 
 
       if (
         !dragging &&
         (
-          Math.abs(
-            deltaPixelsX
-          ) > 6 ||
-          Math.abs(
-            deltaPixelsY
-          ) > 6
+          Math.abs(dx) > 6 ||
+          Math.abs(dy) > 6
         )
       ) {
 
@@ -4045,62 +3950,38 @@ function setupMapPan(svg) {
           "map-dragging"
         );
 
-
         try {
-
           svg.setPointerCapture(
             event.pointerId
           );
-
-        } catch (error) {}
+        } catch {}
       }
 
 
-      if (!dragging) {
-        return;
-      }
-
-
-      event.preventDefault();
+      if (!dragging) return;
 
 
       const rect =
         svg.getBoundingClientRect();
 
 
-      if (
-        rect.width === 0 ||
-        rect.height === 0
-      ) {
-        return;
-      }
-
-
-      const deltaMapX =
-        deltaPixelsX *
-        (
-          startViewBox.width /
-          rect.width
-        );
-
-
-      const deltaMapY =
-        deltaPixelsY *
-        (
-          startViewBox.height /
-          rect.height
-        );
-
-
       mapCurrentViewBox = {
 
         x:
           startViewBox.x -
-          deltaMapX,
+          dx *
+          (
+            startViewBox.width /
+            rect.width
+          ),
 
         y:
           startViewBox.y -
-          deltaMapY,
+          dy *
+          (
+            startViewBox.height /
+            rect.height
+          ),
 
         width:
           startViewBox.width,
@@ -4111,21 +3992,18 @@ function setupMapPan(svg) {
 
 
       clampMapViewBox();
-
       applyMapViewBox(svg);
     }
   );
 
 
-  const finishPointer =
+  const finish =
     event => {
 
       if (
         event.pointerId !==
         activePointerId
-      ) {
-        return;
-      }
+      ) return;
 
 
       if (dragging) {
@@ -4133,34 +4011,13 @@ function setupMapPan(svg) {
         svg.dataset.ignoreMapClick =
           "true";
 
-
         setTimeout(
-          () => {
-
+          () =>
             svg.dataset.ignoreMapClick =
-              "false";
-
-          },
+              "false",
           100
         );
       }
-
-
-      try {
-
-        if (
-          svg.hasPointerCapture &&
-          svg.hasPointerCapture(
-            event.pointerId
-          )
-        ) {
-
-          svg.releasePointerCapture(
-            event.pointerId
-          );
-        }
-
-      } catch (error) {}
 
 
       pointerDown = false;
@@ -4168,7 +4025,6 @@ function setupMapPan(svg) {
 
       activePointerId = null;
       startViewBox = null;
-
 
       svg.classList.remove(
         "map-dragging"
@@ -4178,27 +4034,17 @@ function setupMapPan(svg) {
 
   svg.addEventListener(
     "pointerup",
-    finishPointer
+    finish
   );
-
 
   svg.addEventListener(
     "pointercancel",
-    finishPointer
+    finish
   );
 }
 
 
-// ============================================================
-// LIMITES CARTE
-// ============================================================
-
 function clampMapViewBox() {
-
-  if (!mapCurrentViewBox) {
-    return;
-  }
-
 
   const minX = 360;
   const maxX = 760;
@@ -4207,76 +4053,43 @@ function clampMapViewBox() {
   const maxY = 315;
 
 
-  if (
-    mapCurrentViewBox.x <
-    minX
-  ) {
-
-    mapCurrentViewBox.x =
-      minX;
-  }
-
-
-  if (
-    mapCurrentViewBox.y <
-    minY
-  ) {
-
-    mapCurrentViewBox.y =
-      minY;
-  }
+  mapCurrentViewBox.x =
+    Math.max(
+      minX,
+      Math.min(
+        mapCurrentViewBox.x,
+        maxX -
+        mapCurrentViewBox.width
+      )
+    );
 
 
-  if (
-    mapCurrentViewBox.x +
-      mapCurrentViewBox.width >
-    maxX
-  ) {
-
-    mapCurrentViewBox.x =
-      maxX -
-      mapCurrentViewBox.width;
-  }
-
-
-  if (
-    mapCurrentViewBox.y +
-      mapCurrentViewBox.height >
-    maxY
-  ) {
-
-    mapCurrentViewBox.y =
-      maxY -
-      mapCurrentViewBox.height;
-  }
+  mapCurrentViewBox.y =
+    Math.max(
+      minY,
+      Math.min(
+        mapCurrentViewBox.y,
+        maxY -
+        mapCurrentViewBox.height
+      )
+    );
 }
 
 
-// ============================================================
-// APPLIQUER VIEWBOX
-// ============================================================
-
 function applyMapViewBox(svg) {
-
-  if (!mapCurrentViewBox) {
-    return;
-  }
-
 
   svg.setAttribute(
     "viewBox",
-    `
-      ${mapCurrentViewBox.x}
-      ${mapCurrentViewBox.y}
-      ${mapCurrentViewBox.width}
-      ${mapCurrentViewBox.height}
-    `
+    `${mapCurrentViewBox.x}
+     ${mapCurrentViewBox.y}
+     ${mapCurrentViewBox.width}
+     ${mapCurrentViewBox.height}`
   );
 }
 
 
 // ============================================================
-// FIN DU TEST
+// RESULTAT TEST
 // ============================================================
 
 function showTestFinished() {
@@ -4284,101 +4097,34 @@ function showTestFinished() {
   const total =
     testQuestions.length;
 
-
   const percentage =
-    total > 0
+    total
       ? Math.round(
-          (
-            testScore /
-            total
-          ) *
+          testScore /
+          total *
           100
         )
       : 0;
 
 
-  let message =
-    "Continue à t'entraîner 💪";
-
-
-  if (
-    percentage >= 90
-  ) {
-
-    message =
-      "Excellent travail ! 🌟";
-
-  } else if (
-    percentage >= 75
-  ) {
-
-    message =
-      "Très bon résultat ! 👏";
-
-  } else if (
-    percentage >= 60
-  ) {
-
-    message =
-      "Bien joué ! 👍";
-  }
-
-
-  title.textContent =
-    currentChapter.name;
-
-
-  subtitle.textContent =
-    "Test terminé";
-
-
   container.innerHTML = `
-
     <div class="review-box">
 
-      <div
-        class="subject-icon"
-        style="font-size:60px;"
-      >
+      <div class="subject-icon">
         🎯
       </div>
-
 
       <div class="review-question">
         ${testScore} / ${total}
       </div>
 
-
-      <div
-        class="review-answer"
-        style="font-size:30px;"
-      >
+      <div class="review-answer">
         ${percentage} %
       </div>
 
-
-      <div
-        class="mode-description"
-        style="
-          font-size:18px;
-          margin-bottom:30px;
-        "
-      >
-        ${message}
-      </div>
-
-
-      <button
-        id="restart-test"
-        class="main-button"
-      >
-        Nouveau test
-      </button>
-
-
       <button
         id="test-back"
-        class="secondary-button"
+        class="main-button"
       >
         Retour au chapitre
       </button>
@@ -4388,75 +4134,95 @@ function showTestFinished() {
 
 
   document
-    .getElementById(
-      "restart-test"
-    )
+    .getElementById("test-back")
     .addEventListener(
       "click",
       () => {
 
         if (
-          currentChapter
-            .content_type ===
-          "flags"
+          currentChapter.content_type ===
+          "french_vocab"
         ) {
 
-          startFlagTest(
+          showFrenchVocabModes(
             currentChapter
-          );
-
-        } else if (
-          currentChapter
-            .content_type ===
-          "map"
-        ) {
-
-          startMapTest(
-            currentChapter
-          );
-
-        } else if (
-          currentChapter
-            .direction_mode ===
-          "bidirectional"
-        ) {
-
-          showDirectionChoice(
-            "test"
           );
 
         } else {
 
-          startTest(
-            currentChapter,
-            "forward"
+          showModes(
+            currentChapter
           );
         }
       }
-    );
-
-
-  document
-    .getElementById(
-      "test-back"
-    )
-    .addEventListener(
-      "click",
-      () =>
-        showModes(
-          currentChapter
-        )
     );
 }
 
 
 // ============================================================
-// BOUTON RETOUR
+// REPONSES
 // ============================================================
 
-function addBackButton(
-  callback
+function isAcceptedWrittenAnswer(
+  user,
+  expected
 ) {
+
+  const normalizedUser =
+    normalizeAnswer(user);
+
+  const normalizedExpected =
+    normalizeAnswer(expected);
+
+
+  if (
+    normalizedUser ===
+    normalizedExpected
+  ) return true;
+
+
+  const alternatives =
+    String(expected)
+      .split(/\s*\/\s*|,\s*/)
+      .map(normalizeAnswer);
+
+
+  return alternatives.includes(
+    normalizedUser
+  );
+}
+
+
+function normalizeAnswer(value) {
+
+  return String(value || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(
+      /[\u0300-\u036f]/g,
+      ""
+    )
+    .replace(
+      /[’']/g,
+      ""
+    )
+    .replace(
+      /[.!?,;:()[\]{}]/g,
+      " "
+    )
+    .replace(
+      /\s+/g,
+      " "
+    )
+    .trim();
+}
+
+
+// ============================================================
+// RETOUR
+// ============================================================
+
+function addBackButton(callback) {
 
   const back =
     document.createElement("div");
@@ -4470,42 +4236,36 @@ function addBackButton(
   back.style.padding =
     "16px 20px";
 
-
   back.innerHTML = `
     <div
       class="subject-name"
       style="
-        font-size:17px;
         text-align:left;
+        font-size:17px;
       "
     >
       ← Retour
     </div>
   `;
 
-
   back.addEventListener(
     "click",
     callback
   );
-
 
   container.appendChild(back);
 }
 
 
 // ============================================================
-// MÉLANGE
+// MELANGE
 // ============================================================
 
 function shuffleArray(array) {
 
   for (
-    let i =
-      array.length - 1;
-
+    let i = array.length - 1;
     i > 0;
-
     i--
   ) {
 
@@ -4514,7 +4274,6 @@ function shuffleArray(array) {
         Math.random() *
         (i + 1)
       );
-
 
     [
       array[i],
@@ -4528,32 +4287,15 @@ function shuffleArray(array) {
 
 
 // ============================================================
-// SÉCURISER LE TEXTE HTML
+// SECURITE TEXTE
 // ============================================================
 
 function escapeHtml(value) {
 
-  return String(
-    value ?? ""
-  )
-    .replace(
-      /&/g,
-      "&amp;"
-    )
-    .replace(
-      /</g,
-      "&lt;"
-    )
-    .replace(
-      />/g,
-      "&gt;"
-    )
-    .replace(
-      /"/g,
-      "&quot;"
-    )
-    .replace(
-      /'/g,
-      "&#039;"
-    );
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
